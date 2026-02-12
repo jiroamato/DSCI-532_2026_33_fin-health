@@ -121,6 +121,17 @@ app_ui = ui.page_fillable(
                 ),
                 ui.p("[Line chart placeholder — current ratio by year]"),
             ),
+            
+            # Debt/Equity Ratio card
+            ui.card(
+                ui.card_header("Debt / Equity Ratio"),
+                ui.div(
+                    ui.span("2.37", class_="kpi-big"),
+                    ui.br(),
+                    ui.span("Debt/Equity over time", class_="kpi-label"),
+                ),
+                ui.p("[Line chart placeholder — debt/equity ratio by year]"),
+            ),
         ),     
     ),
 )
