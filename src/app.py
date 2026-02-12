@@ -72,8 +72,18 @@ app_ui = ui.page_fillable(
                     ui.span("25.3%", class_="kpi-big"),
                     ui.br(),
                     ui.span("[Sparkline chart placeholder — margin trend over years]", class_="kpi-label"),
-                )
-            )
+                ),
+            ),
+
+            # ROE card
+            ui.card(
+                ui.card_header("Return on Equity (ROE)"),
+                ui.div(
+                    ui.span("196.96%", class_="kpi-big"),
+                    ui.br(),
+                    ui.span("[Sparkline chart placeholder — ROE trend over years]", class_="kpi-label"),
+                ),
+            ),         
         ),
     )
 )
