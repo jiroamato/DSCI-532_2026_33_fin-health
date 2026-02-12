@@ -83,7 +83,21 @@ app_ui = ui.page_fillable(
                     ui.br(),
                     ui.span("[Sparkline chart placeholder — ROE trend over years]", class_="kpi-label"),
                 ),
-            ),         
+            ),
+
+            # Revenue & Net Income card
+            ui.card(
+                ui.card_header("Revenue & Net Income"),
+                ui.div(
+                    ui.span("$394,328M", class_="kpi-big"),
+                    ui.br(),
+                    ui.span("Revenue", class_="kpi-label"),
+                    ui.br(), ui.br(),
+                    ui.span("$99,803M", class_="kpi-big"),
+                    ui.br(),
+                    ui.span("Net Income", class_="kpi-label"),
+                ),
+            ),
         ),
     )
 )
