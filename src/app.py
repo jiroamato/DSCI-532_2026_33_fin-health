@@ -121,7 +121,7 @@ app_ui = ui.page_fillable(
                 ),
                 ui.p("[Line chart placeholder — current ratio by year]"),
             ),
-            
+
             # Debt/Equity Ratio card
             ui.card(
                 ui.card_header("Debt / Equity Ratio"),
@@ -131,6 +131,19 @@ app_ui = ui.page_fillable(
                     ui.span("Debt/Equity over time", class_="kpi-label"),
                 ),
                 ui.p("[Line chart placeholder — debt/equity ratio by year]"),
+            ),
+            
+            # Cash Flows card
+            ui.card(
+                ui.card_header("Cash Flows"),
+                ui.div(
+                    ui.span("Operating: $122,151M", class_="kpi-label"),
+                    ui.br(),
+                    ui.span("Investing: -$22,354M", class_="kpi-label"),
+                    ui.br(),
+                    ui.span("Financing: -$110,749M", class_="kpi-label"),
+                ),
+                ui.p("[Grouped bar chart placeholder — cash flows by year]"),
             ),
         ),     
     ),
