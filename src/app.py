@@ -98,6 +98,12 @@ app_ui = ui.page_fillable(
                     ui.span("Net Income", class_="kpi-label"),
                 ),
             ),
+
+            # Revenue over time chart
+            ui.card(
+                ui.card_header("Revenue Over Time"),
+                ui.p("[Bar chart placeholder — yearly revenue from 2009-2023]"),
+            ),
         ),
     )
 )
