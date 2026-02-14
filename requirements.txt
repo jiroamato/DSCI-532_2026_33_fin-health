@@ -8,5 +8,8 @@ plotly
 jupyterlab
 ipykernel
 quarto-cli
+quartodoc
 shiny
 shinywidgets
+ruff
+pytest
