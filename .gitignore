@@ -201,7 +201,18 @@ cython_debug/
 .cursorignore
 .cursorindexingignore
 
+# Claude
+.claude/
+
 # Marimo
 marimo/_static/
 marimo/_lsp/
 __marimo__/
+
+# Quarto artifacts
+/.quarto/
+**/*.quarto_ipynb
+
+# Coverage files from pytest
+.coverage
+coverage.xml
