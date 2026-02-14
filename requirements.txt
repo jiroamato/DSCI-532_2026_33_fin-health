@@ -13,3 +13,7 @@ shiny
 shinywidgets
 ruff
 pytest
+pytest-cov
+pytest-raises
+pytest-randomly
+pytest-xdist
