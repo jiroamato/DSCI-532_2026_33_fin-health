@@ -9,14 +9,17 @@
 
 `fin-health` is an interactive dashboard that visualizes the financial health of publicly traded companies. It allows users to explore key financial metrics such as revenue, profitability, debt ratios, and cash flow across companies and time periods. Fin-Health aims to support investors and analysts in making data-driven comparisons and assessments of corporate financial performance.
 
-## Dependencies
-- [conda](https://docs.conda.io/en/latest/) 
-
 ## Developer Setup
+
+### Dependencies
+
+-   `conda` (version 26.1.0 or higher)
+-   `conda-lock` (version 3.0.4 or higher - **optional**)
+-   Python and packages listed in [`requirements.txt`](requirements.txt)
 
 For a more comprehensive guide on development guidelines for this project, check out our contributing page [here](./CONTRIBUTING.md).
 
-1. Install [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) as a prerequisite.
+1. Install [`conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) as a prerequisite.
 
 2. Clone the repository:
 
@@ -29,6 +32,13 @@ cd DSCI-532_2026_33_fin-health
 
 ```bash
 conda env create -f environment.yml
+conda activate fin-health
+```
+
+Or install environment via [`conda-lock`](https://conda.github.io/conda-lock/basic_usage/)
+
+```bash
+conda-lock install -n fin-health conda-lock.yml
 conda activate fin-health
 ```
 

@@ -105,7 +105,17 @@ main
 Ready to contribute? Here's how to set up fin-health for
 local development.
 
-1. Install [conda](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) as a prerequisite.
+1. Install [`conda`](https://docs.conda.io/projects/conda/en/latest/user-guide/install/index.html) as a prerequisite.
+
+   Optionally, you can also install [`conda-lock`](https://github.com/conda/conda-lock) by using **one** of the following commands:
+
+   ```bash
+   pipx install conda-lock
+   condax install conda-lock
+   pip install conda-lock
+   conda install --channel=conda-forge --name=base conda-lock
+   mamba install --channel=conda-forge --name=base conda-lock
+   ```
 
 2. Fork the <https://github.com/UBC-MDS/DSCI-532_2026_33_fin-health>
    repository on GitHub.
@@ -116,10 +126,19 @@ local development.
     git clone git@github.com:your_name_here/DSCI-532_2026_33_fin-health.git
     ```
 
-4. Create and activate the conda environment
+4. Create and activate the conda environment using one of two ways:
+
+   Install via `conda`:
 
    ```bash
    conda env create -f environment.yml
+   conda activate fin-health
+   ```
+
+   Or install via `conda-lock` (faster installation):
+
+   ```bash
+   conda-lock install -n fin-health conda-lock.yml
    conda activate fin-health
    ```
 
@@ -142,7 +161,7 @@ local development.
 7. Check that your changes pass our test suite.
 
     ```bash
-    pytest -v --cov=fin-health --cov-branch --cov-report=term-missing --cov-report=xml
+    pytest -v --cov --cov-branch --cov-report=term-missing --cov-report=xml
     ```
 
 8. Commit your changes and push your branch to GitHub. Please use [semantic
