@@ -2,7 +2,7 @@
 
 ## Documentation
 
-Copyright (c) 2026 Seungmyun Park, Shruti Sasi, Jiro Amato
+Copyright (c) 2026 Seungmyun Park, Shruti Sasi, Jiro Amato, Luke Ni
 
 Documentation in the `reports/` and `notebooks/` directory is made available under the **Attribution 4.0 International** ([CC BY 4.0](https://creativecommons.org/licenses/by/4.0/)).
 
@@ -33,7 +33,7 @@ No warranties are given. The license may not give you all of the permissions nec
 
 MIT License
 
-Copyright (c) 2026 Seungmyun Park, Shruti Sasi, Jiro Amato
+Copyright (c) 2026 Seungmyun Park, Shruti Sasi, Jiro Amato, Luke Ni
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of
 this software and associated documentation files (the "Software"), to deal in
