@@ -14,6 +14,7 @@
 - Seungmyun Park
 - Shruti Sasi
 - Jiro Amato
+- Luke Ni
 
 ## Contributing
 
