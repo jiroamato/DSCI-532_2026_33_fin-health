@@ -41,7 +41,7 @@ to let us know what you will be working on so that we can provide you with guida
 ### Submit Feedback
 
 The best way to send feedback is to file an issue at
-<https://github.com/UBC-MDS/DSCI-532_2026_33_fin-health/issues>. If your feedback fits the format of one of the issue templates, please use that. Remember that this is a volunteer-driven project and everybody has limited time.
+<https://github.com/UBC-MDS/DSCI-532_2026_33_fin-health/issues> using the Peer Review template. If your feedback fits the format of the Peer Review template, please use that. Remember that this is a volunteer-driven project and everybody has limited time.
 
 ## Git Workflow
 
