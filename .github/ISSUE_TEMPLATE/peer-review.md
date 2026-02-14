@@ -1,9 +1,9 @@
 ---
-name: Peer Review
+name: 📝 Peer Review
 about: A template for a peer review of this repository.
-title: "[PEER REVIEW]: "
+title: "[PEER REVIEW]: <Reviewer_Name>"
 labels: review
-assignees: Jenniferonyebuchi, jimmy2026-V, jiroamato, shanzekhem
+assignees: ShrutiSasi, eddeness, jiroamato, lukeni777
 
 ---
 
