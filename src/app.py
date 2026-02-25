@@ -1,12 +1,14 @@
 from pathlib import Path
-
+import altair as alt
 import pandas as pd
 from shiny import App, reactive, render, ui
+from shinywidgets import render_widget, output_widget
 
-# Load dataset at module level (runs once on app startup)
+# Data loading from module level
 DATA_PATH = Path(__file__).parent.parent / "data" / "raw" / "financial_statement.csv"
 df = pd.read_csv(DATA_PATH, encoding="utf-8-sig")
 df.columns = df.columns.str.strip()
+df["Category"] = df["Category"].replace({"BANK": "Bank"})
 
 CATEGORY_COMPANIES = {
     "Bank": ["AIG", "BCS"],
@@ -71,6 +73,7 @@ def page1_sector_analysis():
                 ),
             ),
             col_widths=[4, 4, 4],
+            fill=False,
         ),
         # Sidebar + Charts
         ui.layout_sidebar(
@@ -79,9 +82,9 @@ def page1_sector_analysis():
                 ui.input_slider(
                     id="p1_year_range",
                     label="Period",
-                    min=2009,
-                    max=2022,
-                    value=[2009, 2022],
+                    min=int(df["Year"].min()),
+                    max=int(df["Year"].max()),
+                    value=[int(df["Year"].min()), int(df["Year"].max())],
                     sep="",
                 ),
                 ui.input_select(
@@ -102,11 +105,11 @@ def page1_sector_analysis():
             ui.layout_columns(
                 ui.card(
                     ui.card_header("A. Sector Profitability"),
-                    ui.output_ui("p1_chart_a"),
+                    output_widget("p1_chart_a"),
                 ),
                 ui.card(
                     ui.card_header("B. Profitability Trend"),
-                    ui.output_ui("p1_chart_b"),
+                    output_widget("p1_chart_b"),
                 ),
                 col_widths=[6, 6],
             ),
@@ -114,7 +117,7 @@ def page1_sector_analysis():
             ui.layout_columns(
                 ui.card(
                     ui.card_header("C. Peer Benchmarking"),
-                    ui.output_ui("p1_chart_c"),
+                    output_widget("p1_chart_c"),
                 ),
                 ui.card(
                     ui.card_header("D. Company Detail"),
@@ -267,6 +270,16 @@ app_ui = ui.page_navbar(
     title="fin-health",
     id="main_nav",
     fillable=True,
+    footer=ui.div(
+        ui.hr(),
+        ui.p(
+            "US Corporate Financial Health Dashboard | ",
+            "Team: Jiro Amato, Eddeness, ShrutiSasi, lukeni777 | ",
+            ui.a("GitHub Repo", href="https://github.com/UBC-MDS/532-finance-health"),
+            " | Last updated: 2026-02-25",
+            style="text-align: center; font-size: 0.85em; color: #888;",
+        ),
+    ),
 )
 
 
@@ -286,40 +299,128 @@ def server(input, output, session):
 
         return filtered
 
+    # KPI outputs
     @render.text
     def p1_avg_margin():
-        p1_filtered_data()
-        return "14.2%"
+        filtered = p1_filtered_data()
+        avg = filtered["Net Profit Margin"].mean()
+        return f"{avg:.1f}%"
 
     @render.text
     def p1_top_sector():
-        p1_filtered_data()
-        return "Tech"
+        filtered = p1_filtered_data()
+        top = filtered.groupby("Category")["Net Profit Margin"].mean().idxmax()
+        return top
 
     @render.text
     def p1_revenue_growth():
-        p1_filtered_data()
-        return "+5.8%"
+        filtered = p1_filtered_data()
+        yearly_rev = filtered.groupby("Year")["Revenue"].sum().sort_index()
+        if len(yearly_rev) < 2:
+            return "N/A"
+        last, prev = yearly_rev.iloc[-1], yearly_rev.iloc[-2]
+        pct = (last - prev) / prev * 100
+        sign = "+" if pct >= 0 else ""
+        return f"{sign}{pct:.1f}%"
 
-    @render.ui
+    # Chart A: Sector Profitability Bar Chart
+    @render_widget
     def p1_chart_a():
-        p1_filtered_data()
-        return ui.p("[Bar chart placeholder — comparing avg metric across sectors]")
+        filtered = p1_filtered_data()
+        metric = input.p1_metric()
 
-    @render.ui
+        avg_by_sector = (
+            filtered.groupby("Category")[metric].mean().reset_index()
+        )
+
+        chart = (
+            alt.Chart(avg_by_sector)
+            .mark_bar()
+            .encode(
+                x=alt.X("Category:N", title="Sector", sort="-y"),
+                y=alt.Y(f"{metric}:Q", title=metric),
+                color=alt.Color(
+                    "Category:N",
+                    scale=alt.Scale(scheme="tableau10"),
+                    legend=None,
+                ),
+                tooltip=["Category", alt.Tooltip(f"{metric}:Q", format=".2f")],
+            )
+            .properties(title=f"Average {metric} by Sector", width="container")
+        )
+        return chart
+
+    # Chart B: Profitability Trend Line Chart
+    @render_widget
     def p1_chart_b():
-        p1_filtered_data()
-        return ui.p("[Line chart placeholder — metric trend over time by sector]")
+        filtered = p1_filtered_data()
+        metric = input.p1_metric()
 
-    @render.ui
+        trend = (
+            filtered.groupby(["Year", "Category"])[metric]
+            .mean()
+            .reset_index()
+        )
+
+        chart = (
+            alt.Chart(trend)
+            .mark_line(point=True)
+            .encode(
+                x=alt.X("Year:O", title="Year"),
+                y=alt.Y(f"{metric}:Q", title=metric),
+                color=alt.Color(
+                    "Category:N", scale=alt.Scale(scheme="tableau10")
+                ),
+                tooltip=[
+                    "Year",
+                    "Category",
+                    alt.Tooltip(f"{metric}:Q", format=".2f"),
+                ],
+            )
+            .properties(title=f"{metric} Trend Over Time", width="container")
+        )
+        return chart
+
+    # Chart C: Peer Benchmarking Scatter Plot
+    @render_widget
     def p1_chart_c():
-        p1_filtered_data()
-        return ui.p("[Scatter plot placeholder — Revenue vs Net Income]")
+        filtered = p1_filtered_data()
+        metric = input.p1_metric()
 
+        chart = (
+            alt.Chart(filtered)
+            .mark_circle(size=60)
+            .encode(
+                x=alt.X("Revenue:Q", title="Revenue ($)"),
+                y=alt.Y(f"{metric}:Q", title=metric),
+                color=alt.Color(
+                    "Category:N", scale=alt.Scale(scheme="tableau10")
+                ),
+                tooltip=[
+                    "Company",
+                    "Category",
+                    "Year:O",
+                    alt.Tooltip("Revenue:Q", format=",.0f"),
+                    alt.Tooltip(f"{metric}:Q", format=",.2f"),
+                ],
+            )
+            .properties(title=f"Revenue vs {metric}", width="container")
+        )
+        return chart
+
+    # Table D: Company Detail Table
     @render.data_frame
     def p1_table_d():
-        p1_filtered_data()
-        return None
+        filtered = p1_filtered_data()
+        cols = [
+            "Company",
+            "Category",
+            "Year",
+            "Revenue",
+            "Net Income",
+            "Net Profit Margin",
+        ]
+        return filtered[cols]
 
     # Page 2: Company Financial Health
     @reactive.effect
