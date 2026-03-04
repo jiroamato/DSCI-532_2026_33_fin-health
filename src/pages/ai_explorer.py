@@ -8,7 +8,13 @@ from chatlas import ChatGithub
 from shiny import render, ui
 from shinywidgets import output_widget, render_altair
 
-from charts.altair_charts import build_metric_trend, build_sector_bar
+from charts.altair_charts import (
+    build_company_comparison_bar,
+    build_company_trend,
+    build_metric_trend,
+    build_sector_bar,
+    build_single_company_summary,
+)
 from components.empty_chart import empty_chart
 from data import METRIC_CHOICES, df
 
@@ -156,6 +162,14 @@ def ai_explorer_server(input, output, session):
         filtered = qc_vals.df()
         return f"{len(filtered)} rows"
 
+    def _data_shape(filtered):
+        """Return (n_companies, n_sectors, n_years) for adaptive chart selection."""
+        return (
+            filtered["Company"].nunique(),
+            filtered["Category"].nunique(),
+            filtered["Year"].nunique(),
+        )
+
     @render_altair
     def ai_chart_a():
         filtered = qc_vals.df()
@@ -163,6 +177,11 @@ def ai_explorer_server(input, output, session):
         unit = METRIC_CHOICES.get(metric, "")
         if filtered.empty:
             return empty_chart()
+        n_companies, n_sectors, n_years = _data_shape(filtered)
+        if n_companies == 1:
+            return build_single_company_summary(filtered, metric, unit)
+        if n_sectors == 1 or n_years == 1:
+            return build_company_comparison_bar(filtered, metric, unit)
         return build_sector_bar(filtered, metric, unit)
 
     @render_altair
@@ -172,6 +191,11 @@ def ai_explorer_server(input, output, session):
         unit = METRIC_CHOICES.get(metric, "")
         if filtered.empty:
             return empty_chart()
+        n_companies, n_sectors, n_years = _data_shape(filtered)
+        if n_years == 1:
+            return build_company_comparison_bar(filtered, metric, unit)
+        if n_companies <= 5:
+            return build_company_trend(filtered, metric, unit)
         return build_metric_trend(filtered, metric, unit)
 
     @render.download(filename="filtered_financial_data.csv")
