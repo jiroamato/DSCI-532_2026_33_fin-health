@@ -5,6 +5,64 @@ import pandas as pd
 
 from components.empty_chart import empty_chart
 
+# Custom warm palette for categorical data
+PALETTE = [
+    "#2563eb",
+    "#c0392b",
+    "#f59e0b",
+    "#009e73",
+    "#8e44ad",
+    "#e67e22",
+    "#1abc9c",
+    "#334155",
+]
+
+
+def _register_theme():
+    """Register and enable the fin-health Altair theme."""
+
+    def _theme():
+        return {
+            "config": {
+                "background": "transparent",
+                "view": {"stroke": "transparent"},
+                "axis": {
+                    "labelFont": "DM Sans, sans-serif",
+                    "titleFont": "DM Sans, sans-serif",
+                    "labelColor": "#475569",
+                    "titleColor": "#0f172a",
+                    "gridColor": "#e2e8f0",
+                    "domainColor": "#e2e8f0",
+                    "labelFontSize": 11,
+                    "titleFontSize": 12,
+                },
+                "title": {
+                    "font": "DM Sans, sans-serif",
+                    "color": "#0f172a",
+                    "fontSize": 13,
+                    "fontWeight": 600,
+                },
+                "legend": {
+                    "labelFont": "DM Sans, sans-serif",
+                    "titleFont": "DM Sans, sans-serif",
+                    "labelColor": "#475569",
+                    "titleColor": "#0f172a",
+                },
+            }
+        }
+
+    if hasattr(alt, "theme") and hasattr(alt.theme, "register"):
+        # Altair >= 5.5
+        @alt.theme.register("fin_health", enable=True)
+        def _fin_health_theme():
+            return alt.theme.ThemeConfig(_theme())
+    else:
+        alt.themes.register("fin_health", _theme)
+        alt.themes.enable("fin_health")
+
+
+_register_theme()
+
 
 def build_sector_bar(data: pd.DataFrame, metric: str, unit: str) -> alt.Chart:
     """Bar chart of average metric by sector."""
@@ -15,13 +73,13 @@ def build_sector_bar(data: pd.DataFrame, metric: str, unit: str) -> alt.Chart:
         return empty_chart()
     return (
         alt.Chart(avg_by_sector)
-        .mark_bar()
+        .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
         .encode(
             x=alt.X("Category:N", title="Sector", sort="-y"),
             y=alt.Y(f"{metric}:Q", title=f"{metric} {unit}"),
             color=alt.Color(
                 "Category:N",
-                scale=alt.Scale(scheme="viridis"),
+                scale=alt.Scale(range=PALETTE),
                 legend=None,
             ),
             tooltip=["Category", alt.Tooltip(f"{metric}:Q", format=".2f")],
@@ -43,7 +101,7 @@ def build_metric_trend(data: pd.DataFrame, metric: str, unit: str) -> alt.Chart:
         .encode(
             alt.X("Year:O", title="Year"),
             alt.Y(f"{metric}:Q", title=f"{metric} {unit}"),
-            color=alt.Color("Category:N", scale=alt.Scale(scheme="viridis")),
+            color=alt.Color("Category:N", scale=alt.Scale(range=PALETTE)),
             tooltip=["Year", "Category", alt.Tooltip(f"{metric}:Q", format=".2f")],
         )
     )
@@ -59,7 +117,7 @@ def build_peer_scatter(data: pd.DataFrame, metric: str, unit: str) -> alt.Chart:
         .encode(
             x=alt.X("Revenue:Q", title="Revenue ($)"),
             y=alt.Y(f"{metric}:Q", title=f"{metric} {unit}"),
-            color=alt.Color("Category:N", scale=alt.Scale(scheme="viridis")),
+            color=alt.Color("Category:N", scale=alt.Scale(range=PALETTE)),
             tooltip=[
                 "Company",
                 "Category",
@@ -78,7 +136,7 @@ def build_revenue_over_time(data: pd.DataFrame, company: str) -> alt.Chart:
         return empty_chart()
     return (
         alt.Chart(data)
-        .mark_bar()
+        .mark_bar(color="#2563eb", cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
         .encode(
             x=alt.X("Year:O", title="Year"),
             y=alt.Y("Revenue:Q", title="Revenue ($ millions)"),
@@ -98,9 +156,9 @@ def build_ratio_over_time(data: pd.DataFrame, company: str, metric: str) -> alt.
     """Line chart of a ratio metric over time for a single company (Page 2)."""
     if data.empty:
         return empty_chart()
-    return (
+    line = (
         alt.Chart(data)
-        .mark_line(point=True)
+        .mark_line(point=True, color="#2563eb", strokeWidth=2)
         .encode(
             x=alt.X("Year:O", title="Year"),
             y=alt.Y(f"{metric}:Q", title=metric),
@@ -109,10 +167,18 @@ def build_ratio_over_time(data: pd.DataFrame, company: str, metric: str) -> alt.
                 alt.Tooltip(f"{metric}:Q", format=".2f"),
             ],
         )
-        .properties(
-            title=f"{metric} Over Time — {company}",
-            width="container",
+    )
+    area = (
+        alt.Chart(data)
+        .mark_area(opacity=0.08, color="#2563eb")
+        .encode(
+            x=alt.X("Year:O"),
+            y=alt.Y(f"{metric}:Q"),
         )
+    )
+    return (line + area).properties(
+        title=f"{metric} Over Time — {company}",
+        width="container",
     )
 
 
@@ -125,13 +191,11 @@ def build_company_comparison_bar(
     avg_by_company = data.groupby("Company")[metric].mean().reset_index()
     return (
         alt.Chart(avg_by_company)
-        .mark_bar()
+        .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
         .encode(
             x=alt.X("Company:N", title="Company", sort="-y"),
             y=alt.Y(f"{metric}:Q", title=f"{metric} {unit}"),
-            color=alt.Color(
-                "Company:N", scale=alt.Scale(scheme="viridis"), legend=None
-            ),
+            color=alt.Color("Company:N", scale=alt.Scale(range=PALETTE), legend=None),
             tooltip=["Company", alt.Tooltip(f"{metric}:Q", format=".2f")],
         )
         .properties(title=f"{metric} by Company", width="container")
@@ -151,11 +215,11 @@ def build_single_company_summary(
     melted = pd.DataFrame({"Metric": available, "Value": [row[m] for m in available]})
     return (
         alt.Chart(melted)
-        .mark_bar()
+        .mark_bar(cornerRadiusEnd=3)
         .encode(
             y=alt.Y("Metric:N", title=None, sort=available),
             x=alt.X("Value:Q", title="Value"),
-            color=alt.Color("Metric:N", scale=alt.Scale(scheme="viridis"), legend=None),
+            color=alt.Color("Metric:N", scale=alt.Scale(range=PALETTE), legend=None),
             tooltip=["Metric", alt.Tooltip("Value:Q", format=",.2f")],
         )
         .properties(title=f"Key Metrics — {company}", width="container")
@@ -173,7 +237,7 @@ def build_company_trend(data: pd.DataFrame, metric: str, unit: str) -> alt.Chart
         .encode(
             alt.X("Year:O", title="Year"),
             alt.Y(f"{metric}:Q", title=f"{metric} {unit}"),
-            color=alt.Color("Company:N", scale=alt.Scale(scheme="viridis")),
+            color=alt.Color("Company:N", scale=alt.Scale(range=PALETTE)),
             tooltip=["Year", "Company", alt.Tooltip(f"{metric}:Q", format=".2f")],
         )
         .properties(title=f"{metric} Trend by Company", width="container")
@@ -197,13 +261,16 @@ def build_cash_flows(data: pd.DataFrame, company: str) -> alt.Chart:
 
     return (
         alt.Chart(melted)
-        .mark_bar()
+        .mark_bar(cornerRadiusTopLeft=2, cornerRadiusTopRight=2)
         .encode(
             x=alt.X("Year:O", title="Year"),
             y=alt.Y("Amount:Q", title="Cash Flow ($ millions)"),
             color=alt.Color(
                 "Flow Type:N",
-                scale=alt.Scale(scheme="tableau10"),
+                scale=alt.Scale(
+                    domain=["Operating", "Investing", "Financing"],
+                    range=["#2563eb", "#c0392b", "#f59e0b"],
+                ),
             ),
             xOffset="Flow Type:N",
             tooltip=[

@@ -99,7 +99,10 @@ def company_ui():
             ui.tags.h3(
                 ui.output_text("p2_current_ratio", inline=True),
                 class_="kpi-value",
+                style="display: inline;",
             ),
+            ui.output_ui("p2_current_ratio_status", style="display: inline;"),
+            class_="kpi-value-row",
         ),
         output_widget("p2_current_ratio_chart"),
         full_screen=True,
@@ -110,7 +113,10 @@ def company_ui():
             ui.tags.h3(
                 ui.output_text("p2_debt_equity", inline=True),
                 class_="kpi-value",
+                style="display: inline;",
             ),
+            ui.output_ui("p2_debt_equity_status", style="display: inline;"),
+            class_="kpi-value-row",
         ),
         output_widget("p2_debt_equity_chart"),
         full_screen=True,
@@ -258,6 +264,32 @@ def company_server(input, output, session):
             ui.br(),
             ui.span(f"Financing: ${fin:,.0f}M", class_="kpi-label"),
         )
+
+    @render.ui
+    def p2_current_ratio_status():
+        filtered = p2_filtered_data()
+        if filtered.empty:
+            return ui.tags.span()
+        value = filtered["Current Ratio"].iloc[0]
+        if value >= 1.5:
+            return ui.tags.span("\u2713", class_="kpi-status healthy")
+        elif value >= 1.0:
+            return ui.tags.span("!", class_="kpi-status warning")
+        else:
+            return ui.tags.span("\u2717", class_="kpi-status danger")
+
+    @render.ui
+    def p2_debt_equity_status():
+        filtered = p2_filtered_data()
+        if filtered.empty:
+            return ui.tags.span()
+        value = filtered["Debt/Equity Ratio"].iloc[0]
+        if value <= 1.0:
+            return ui.tags.span("\u2713", class_="kpi-status healthy")
+        elif value <= 2.0:
+            return ui.tags.span("!", class_="kpi-status warning")
+        else:
+            return ui.tags.span("\u2717", class_="kpi-status danger")
 
     @render_altair
     def p2_cash_flow_chart():

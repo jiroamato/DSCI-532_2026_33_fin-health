@@ -54,7 +54,7 @@ def test_build_revenue_over_time_returns_chart():
 def test_build_ratio_over_time_returns_chart():
     aapl = df[df["Company"] == "AAPL"]
     chart = build_ratio_over_time(aapl, "AAPL", "Current Ratio")
-    assert isinstance(chart, alt.Chart)
+    assert isinstance(chart, (alt.Chart, alt.LayerChart))
 
 
 def test_build_cash_flows_returns_chart():

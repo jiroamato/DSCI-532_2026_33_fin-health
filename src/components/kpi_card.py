@@ -3,7 +3,13 @@
 from shiny import ui
 
 
-def kpi_card(header: str, value_id: str, trend_id: str = None, label_id: str = None):
+def kpi_card(
+    header: str,
+    value_id: str,
+    trend_id: str = None,
+    label_id: str = None,
+    status_id: str = None,
+):
     """Build a KPI card with consistent structure.
 
     Parameters
@@ -16,6 +22,8 @@ def kpi_card(header: str, value_id: str, trend_id: str = None, label_id: str = N
         Output ID for the trend indicator (used with @render.ui).
     label_id : str, optional
         Output ID for the label row below the value (used with @render.ui).
+    status_id : str, optional
+        Output ID for a health status icon (used with @render.ui).
     """
     value_children = [
         ui.tags.h3(
@@ -24,6 +32,8 @@ def kpi_card(header: str, value_id: str, trend_id: str = None, label_id: str = N
             style="display: inline;",
         )
     ]
+    if status_id:
+        value_children.append(ui.output_ui(status_id, style="display: inline;"))
     if trend_id:
         value_children.append(ui.output_ui(trend_id, style="display: inline;"))
 

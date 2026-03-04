@@ -102,13 +102,23 @@ def sector_ui():
         col_widths=[6, 6],
     )
 
+    overview_section = ui.div(
+        ui.div("OVERVIEW", class_="section-label section-label-blue"),
+        kpi_row,
+        class_="grid-section",
+    )
+    analysis_section = ui.div(
+        ui.div("ANALYSIS", class_="section-label section-label-red"),
+        ui.div(chart_row, peer_row),
+        class_="grid-section",
+    )
+
     return ui.layout_sidebar(
         sidebar,
         ui.page_fillable(
             ui.h2("US Corporate Profitability Analytics"),
-            kpi_row,
-            chart_row,
-            peer_row,
+            overview_section,
+            analysis_section,
         ),
     )
 
