@@ -11,11 +11,11 @@ load_dotenv(Path(__file__).parent.parent / ".env")
 # Ensure src/ is on the Python path (needed for Posit Connect deployment)
 sys.path.insert(0, str(Path(__file__).parent))
 
-from shiny import App, ui
+from shiny import App, ui  # noqa: E402
 
-from pages.ai_explorer import ai_explorer_server, ai_explorer_ui
-from pages.company import company_server, company_ui
-from pages.sector import sector_server, sector_ui
+from pages.ai_explorer import ai_explorer_server, ai_explorer_ui  # noqa: E402
+from pages.company import company_server, company_ui  # noqa: E402
+from pages.sector import sector_server, sector_ui  # noqa: E402
 
 # Load custom CSS
 CSS_PATH = Path(__file__).parent.parent / "assets" / "custom_styles.css"
