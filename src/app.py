@@ -6,6 +6,8 @@ from shiny import App, reactive, render, ui
 from shinywidgets import output_widget, render_altair
 
 from data import df, CATEGORY_COMPANIES, ALL_SECTORS, METRIC_CHOICES
+from components.kpi_card import kpi_card
+from components.empty_chart import empty_chart
 
 # Load custom CSS from external file
 CSS_PATH = Path(__file__).parent.parent / "assets" / "custom_styles.css"
@@ -45,52 +47,22 @@ def page1_sector_analysis():
     )
 
     # KPI cards
-    card_avg_margin = ui.card(
-        ui.card_header("Avg Profit Margin"),
-        ui.tags.div(
-            ui.tags.h3(
-                ui.output_text("p1_avg_margin", inline=True),
-                class_="kpi-value",
-                style="display: inline;",
-            ),
-            ui.output_ui("p1_margin_trend", style="display: inline;"),
-            class_="kpi-value-row",
-        ),
-        ui.tags.div(
-            ui.output_ui("p1_margin_badge"),
-            class_="kpi-label-row",
-        ),
+    card_avg_margin = kpi_card(
+        header="Avg Profit Margin",
+        value_id="p1_avg_margin",
+        trend_id="p1_margin_trend",
+        label_id="p1_margin_badge",
     )
-    card_top_sector = ui.card(
-        ui.card_header("Top Sector"),
-        ui.tags.div(
-            ui.tags.h3(
-                ui.output_text("p1_top_sector", inline=True),
-                class_="kpi-value",
-                style="display: inline;",
-            ),
-            class_="kpi-value-row",
-        ),
-        ui.tags.div(
-            ui.output_ui("p1_index_performance_display"),
-            class_="kpi-label-row",
-        ),
+    card_top_sector = kpi_card(
+        header="Top Sector",
+        value_id="p1_top_sector",
+        label_id="p1_index_performance_display",
     )
-    card_revenue_growth = ui.card(
-        ui.card_header("Revenue Growth"),
-        ui.tags.div(
-            ui.output_ui("p1_revenue_growth_display"),
-            ui.output_ui("p1_revenue_trend", style="display: inline;"),
-            class_="kpi-value-row",
-        ),
-        ui.tags.div(
-            ui.tags.p(
-                "YEAR OVER YEAR",
-                class_="kpi-label",
-                style="margin-top: 0.5rem;",
-            ),
-            class_="kpi-label-row",
-        ),
+    card_revenue_growth = kpi_card(
+        header="Revenue Growth",
+        value_id="p1_revenue_growth_value",
+        trend_id="p1_revenue_trend",
+        label_id="p1_revenue_growth_label",
     )
     kpi_row = ui.layout_columns(
         card_avg_margin,
@@ -437,18 +409,20 @@ def server(input, output, session):
         revenue_growth = (current - previous) / previous * 100
         return {"value": revenue_growth, "is_positive": revenue_growth >= 0}
 
-    @render.ui
-    def p1_revenue_growth_display():
+    @render.text
+    def p1_revenue_growth_value():
         change = p1_revenue_change()
         if change is None:
-            return ui.tags.h3(
-                "Data Unavailable", class_="kpi-value", style="display: inline;"
-            )
+            return "Data Unavailable"
         sign = "+" if change["is_positive"] else ""
-        return ui.tags.h3(
-            f"{sign}{change['value']:.1f}%",
-            class_="kpi-value",
-            style="display: inline;",
+        return f"{sign}{change['value']:.1f}%"
+
+    @render.ui
+    def p1_revenue_growth_label():
+        return ui.tags.p(
+            "YEAR OVER YEAR",
+            class_="kpi-label",
+            style="margin-top: 0.5rem;",
         )
 
     @render.ui
@@ -471,15 +445,7 @@ def server(input, output, session):
 
         avg_by_sector = filtered.groupby("Category")[metric].mean().reset_index()
         if avg_by_sector.empty:
-            return (
-                alt.Chart(
-                    pd.DataFrame({"x": [0], "y": [0], "text": ["Data Unavailable"]})
-                )
-                .mark_text(size=18)
-                .encode(
-                    text="text:N",
-                )
-            )
+            return empty_chart()
         chart = (
             alt.Chart(avg_by_sector)
             .mark_bar()
@@ -515,15 +481,7 @@ def server(input, output, session):
         ].mean()
 
         if observed_trend.empty:
-            return (
-                alt.Chart(
-                    pd.DataFrame({"x": [0], "y": [0], "text": ["Data Unavailable"]})
-                )
-                .mark_text(size=18)
-                .encode(
-                    text="text:N",
-                )
-            )
+            return empty_chart()
 
         metric_trend = (
             alt.Chart(observed_trend)
@@ -545,15 +503,7 @@ def server(input, output, session):
         unit = METRIC_CHOICES[metric]
 
         if filtered.empty:
-            return (
-                alt.Chart(
-                    pd.DataFrame({"x": [0], "y": [0], "text": ["Data Unavailable"]})
-                )
-                .mark_text(size=18)
-                .encode(
-                    text="text:N",
-                )
-            )
+            return empty_chart()
 
         chart = (
             alt.Chart(filtered)
