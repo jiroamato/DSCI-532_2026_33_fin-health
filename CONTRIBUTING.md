@@ -135,13 +135,6 @@ local development.
    conda activate fin-health
    ```
 
-   Or install via `conda-lock` (faster installation):
-
-   ```bash
-   conda-lock install -n fin-health conda-lock.yml
-   conda activate fin-health
-   ```
-
 5. Create a branch for local development using the default branch (typically `develop`) as a starting point. Use `fix` or `feature` as a prefix for your branch name.
 
     ```shell
