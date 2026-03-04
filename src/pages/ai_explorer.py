@@ -140,7 +140,7 @@ def ai_explorer_server(input, output, session):
         return
 
     qc = _get_qc()
-    qc_vals = qc.server(input, output, session)
+    qc_vals = qc.server()
 
     @render.text
     def ai_title():
