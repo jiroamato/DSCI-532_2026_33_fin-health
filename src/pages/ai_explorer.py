@@ -99,7 +99,7 @@ Hi! I can help you explore the financial dataset. Try one of these:
 
 **Filter:** <span class="suggestion">Show tech companies with net profit margin above 20%</span>
 
-**Compare:** <span class="suggestion">Rank all companies by ROE in 2023</span>
+**Compare:** <span class="suggestion">Rank all companies by ROE in 2022</span>
 
 **Aggregate:** <span class="suggestion">What is the average revenue by sector?</span>
 
@@ -174,6 +174,7 @@ def ai_explorer_ui():
         ui.download_button("ai_download", "Download CSV"),
         full_screen=True,
         height="auto",
+        fill=False,
     )
 
     chart_row = ui.layout_columns(

@@ -33,10 +33,12 @@ h3, h4 {
     color: var(--slate-900);
 }
 
-.sidebar { 
+.sidebar {
     background-color: white;
     border-right: 1px solid var(--slate-200);
     box-shadow: 1px 0 3px rgba(0, 0, 0, 0.05);
+    max-height: 100vh;
+    overflow-y: auto;
 }
 
 .sidebar h4 {
