@@ -5,7 +5,7 @@ from functools import cache
 
 import querychat
 from chatlas import ChatGithub
-from shiny import render, ui
+from shiny import reactive, render, ui
 from shinywidgets import output_widget, render_altair
 
 from charts.altair_charts import (
@@ -16,7 +16,7 @@ from charts.altair_charts import (
     build_single_company_summary,
 )
 from components.empty_chart import empty_chart
-from data import METRIC_CHOICES, df
+from data import ALL_SECTORS, METRIC_CHOICES, df
 
 DATA_DESCRIPTION = """
 US Corporate financial statement data (2009–2023), covering 12 publicly
@@ -122,7 +122,12 @@ def ai_explorer_ui():
         )
 
     qc = _get_qc()
+    years = [str(y) for y in sorted(df["Year"].unique())]
     sidebar = ui.sidebar(
+        ui.input_selectize(
+            "ai_sector", "Sector", choices=["All"] + ALL_SECTORS, selected="All"
+        ),
+        ui.input_selectize("ai_year", "Year", choices=["All"] + years, selected="All"),
         qc.ui(),
         open="desktop",
         width=400,
@@ -180,6 +185,27 @@ def ai_explorer_server(input, output, session):
 
     qc = _get_qc()
     qc_vals = qc.server()
+
+    @reactive.effect
+    def _sync_dropdowns():
+        sector = input.ai_sector()
+        year = input.ai_year()
+        clauses = []
+        parts = []
+        if sector != "All":
+            clauses.append(f"Category = '{sector}'")
+            parts.append(sector)
+        if year != "All":
+            clauses.append(f"Year = {year}")
+            parts.append(year)
+        if clauses:
+            qc_vals.sql.set(
+                f"SELECT * FROM financial_data WHERE {' AND '.join(clauses)}"
+            )
+            qc_vals.title.set(" — ".join(parts))
+        else:
+            qc_vals.sql.set(None)
+            qc_vals.title.set(None)
 
     @render.text
     def ai_title():
