@@ -1,11 +1,11 @@
-"""Page 3: AI Explorer — natural-language data filtering with querychat."""
+"""Page 3: fin-chat — natural-language data filtering with querychat."""
 
 import os
 from functools import cache
 
 import querychat
 from chatlas import ChatGithub
-from shiny import reactive, render, ui
+from shiny import render, ui
 from shinywidgets import output_widget, render_altair
 
 from charts.altair_charts import (
@@ -16,7 +16,41 @@ from charts.altair_charts import (
     build_single_company_summary,
 )
 from components.empty_chart import empty_chart
-from data import ALL_SECTORS, METRIC_CHOICES, df
+from data import METRIC_CHOICES, df
+
+DEFAULT_METRIC = "Net Profit Margin"
+
+# Keyword → metric mapping for inferring metric from querychat title/SQL.
+# Order matters: longer/more-specific patterns first to avoid false matches.
+_METRIC_KEYWORDS = {
+    "net profit margin": "Net Profit Margin",
+    "profit margin": "Net Profit Margin",
+    "roe": "ROE",
+    "return on equity": "ROE",
+    "roa": "ROA",
+    "return on assets": "ROA",
+    "roi": "ROI",
+    "return on investment": "ROI",
+    "revenue": "Revenue",
+    "net income": "Net Income",
+    "ebitda": "EBITDA",
+    "current ratio": "Current Ratio",
+    "debt/equity": "Debt\\Equity Ratio",
+    "debt equity": "Debt\\Equity Ratio",
+    "debt to equity": "Debt\\Equity Ratio",
+}
+
+
+def _infer_metric(title: str | None) -> str:
+    """Infer the metric from the querychat title via keyword matching."""
+    if not title:
+        return DEFAULT_METRIC
+    lower = title.lower()
+    for keyword, metric in _METRIC_KEYWORDS.items():
+        if keyword in lower:
+            return metric
+    return DEFAULT_METRIC
+
 
 DATA_DESCRIPTION = """
 US Corporate financial statement data (2009–2023), covering 12 publicly
@@ -109,25 +143,18 @@ def _has_token():
 
 
 def ai_explorer_ui():
-    """Return the AI Explorer page layout."""
+    """Return the fin-chat page layout."""
     if not _has_token():
         return ui.page_fillable(
-            ui.h2("AI Explorer"),
+            ui.h2("fin-chat"),
             ui.card(
                 ui.card_header("Configuration Required"),
-                ui.p(
-                    "Set the GITHUB_TOKEN environment variable to enable the AI Explorer."
-                ),
+                ui.p("Set the GITHUB_TOKEN environment variable to enable fin-chat."),
             ),
         )
 
     qc = _get_qc()
-    years = [str(y) for y in sorted(df["Year"].unique())]
     sidebar = ui.sidebar(
-        ui.input_selectize(
-            "ai_sector", "Sector", choices=["All"] + ALL_SECTORS, selected="All"
-        ),
-        ui.input_selectize("ai_year", "Year", choices=["All"] + years, selected="All"),
         qc.ui(),
         open="desktop",
         width=400,
@@ -144,13 +171,7 @@ def ai_explorer_ui():
         ui.output_data_frame("ai_data_table"),
         ui.download_button("ai_download", "Download CSV"),
         full_screen=True,
-    )
-
-    metric_select = ui.input_selectize(
-        id="ai_metric",
-        label="Metric",
-        choices=list(METRIC_CHOICES.keys()),
-        selected="Net Profit Margin",
+        height="auto",
     )
 
     chart_row = ui.layout_columns(
@@ -170,8 +191,7 @@ def ai_explorer_ui():
     return ui.layout_sidebar(
         sidebar,
         ui.page_fillable(
-            ui.h2("AI Explorer"),
-            metric_select,
+            ui.h2("fin-chat"),
             data_card,
             chart_row,
         ),
@@ -179,42 +199,28 @@ def ai_explorer_ui():
 
 
 def ai_explorer_server(input, output, session):
-    """Server logic for the AI Explorer page."""
+    """Server logic for the fin-chat page."""
     if not _has_token():
         return
 
     qc = _get_qc()
     qc_vals = qc.server()
 
-    @reactive.effect
-    def _sync_dropdowns():
-        sector = input.ai_sector()
-        year = input.ai_year()
-        clauses = []
-        parts = []
-        if sector != "All":
-            clauses.append(f"Category = '{sector}'")
-            parts.append(sector)
-        if year != "All":
-            clauses.append(f"Year = {year}")
-            parts.append(year)
-        if clauses:
-            qc_vals.sql.set(
-                f"SELECT * FROM financial_data WHERE {' AND '.join(clauses)}"
-            )
-            qc_vals.title.set(" — ".join(parts))
-        else:
-            qc_vals.sql.set(None)
-            qc_vals.title.set(None)
-
     @render.text
     def ai_title():
         title = qc_vals.title()
         return title if title else "Filtered Data"
 
+    MAX_ROWS = 10
+    ROW_HEIGHT_PX = 32
+    HEADER_HEIGHT_PX = 40
+
     @render.data_frame
     def ai_data_table():
-        return qc_vals.df()
+        filtered = qc_vals.df()
+        n = len(filtered)
+        height = f"{HEADER_HEIGHT_PX + min(n, MAX_ROWS) * ROW_HEIGHT_PX}px"
+        return render.DataGrid(filtered, height=height)
 
     @render.text
     def ai_row_count():
@@ -232,7 +238,7 @@ def ai_explorer_server(input, output, session):
     @render_altair
     def ai_chart_a():
         filtered = qc_vals.df()
-        metric = input.ai_metric()
+        metric = _infer_metric(qc_vals.title())
         unit = METRIC_CHOICES.get(metric, "")
         if filtered.empty:
             return empty_chart()
@@ -246,7 +252,7 @@ def ai_explorer_server(input, output, session):
     @render_altair
     def ai_chart_b():
         filtered = qc_vals.df()
-        metric = input.ai_metric()
+        metric = _infer_metric(qc_vals.title())
         unit = METRIC_CHOICES.get(metric, "")
         if filtered.empty:
             return empty_chart()

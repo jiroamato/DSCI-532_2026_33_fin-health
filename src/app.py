@@ -25,7 +25,7 @@ with open(CSS_PATH, "r") as css_file:
 # Navbar with page tabs
 nav_sector = ui.nav_panel("Sector Analysis", sector_ui())
 nav_company = ui.nav_panel("Company Health", company_ui())
-nav_ai = ui.nav_panel("AI Explorer", ai_explorer_ui())
+nav_ai = ui.nav_panel("fin-chat", ai_explorer_ui())
 navbar = ui.page_navbar(
     nav_sector,
     nav_company,
