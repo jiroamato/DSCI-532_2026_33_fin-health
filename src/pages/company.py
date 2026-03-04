@@ -3,7 +3,11 @@
 from shiny import reactive, render, ui
 from shinywidgets import output_widget, render_altair
 
-from charts.altair_charts import build_revenue_over_time
+from charts.altair_charts import (
+    build_cash_flows,
+    build_ratio_over_time,
+    build_revenue_over_time,
+)
 from components.empty_chart import empty_chart
 from data import ALL_SECTORS, CATEGORY_COMPANIES, df
 
@@ -88,37 +92,33 @@ def company_ui():
         class_="grid-section",
     )
 
-    # Financial Health cards (hardcoded placeholders — replaced by Task 7)
+    # Financial Health cards (reactive outputs)
     card_current_ratio = ui.card(
         ui.card_header("Current Ratio"),
         ui.div(
-            ui.span("0.88", class_="kpi-value"),
-            ui.br(),
-            ui.span("Current Ratio over time", class_="kpi-label"),
+            ui.tags.h3(
+                ui.output_text("p2_current_ratio", inline=True),
+                class_="kpi-value",
+            ),
         ),
-        ui.p("[Line chart placeholder]"),
+        output_widget("p2_current_ratio_chart"),
         full_screen=True,
     )
     card_debt_equity = ui.card(
         ui.card_header("Debt / Equity Ratio"),
         ui.div(
-            ui.span("2.37", class_="kpi-value"),
-            ui.br(),
-            ui.span("Debt/Equity over time", class_="kpi-label"),
+            ui.tags.h3(
+                ui.output_text("p2_debt_equity", inline=True),
+                class_="kpi-value",
+            ),
         ),
-        ui.p("[Line chart placeholder]"),
+        output_widget("p2_debt_equity_chart"),
         full_screen=True,
     )
     card_cash_flows = ui.card(
         ui.card_header("Cash Flows"),
-        ui.div(
-            ui.span("Operating: $122,151M", class_="kpi-label"),
-            ui.br(),
-            ui.span("Investing: -$22,354M", class_="kpi-label"),
-            ui.br(),
-            ui.span("Financing: -$110,749M", class_="kpi-label"),
-        ),
-        ui.p("[Grouped bar chart placeholder]"),
+        ui.output_ui("p2_cash_flows"),
+        output_widget("p2_cash_flow_chart"),
         full_screen=True,
     )
     health_section = ui.div(
@@ -166,6 +166,8 @@ def company_server(input, output, session):
             & (df["Year"] == year)
         ]
 
+    # --- Profitability KPIs ---
+
     @render.text
     def p2_npm():
         filtered = p2_filtered_data()
@@ -205,3 +207,62 @@ def company_server(input, output, session):
         if company_data.empty:
             return empty_chart()
         return build_revenue_over_time(company_data, company)
+
+    # --- Financial Health KPIs ---
+
+    @render.text
+    def p2_current_ratio():
+        filtered = p2_filtered_data()
+        if filtered.empty:
+            return "N/A"
+        value = filtered["Current Ratio"].iloc[0]
+        return f"{value:.2f}"
+
+    @render_altair
+    def p2_current_ratio_chart():
+        company = input.company()
+        company_data = df[df["Company"] == company]
+        if company_data.empty:
+            return empty_chart()
+        return build_ratio_over_time(company_data, company, "Current Ratio")
+
+    @render.text
+    def p2_debt_equity():
+        filtered = p2_filtered_data()
+        if filtered.empty:
+            return "N/A"
+        value = filtered["Debt/Equity Ratio"].iloc[0]
+        return f"{value:.2f}"
+
+    @render_altair
+    def p2_debt_equity_chart():
+        company = input.company()
+        company_data = df[df["Company"] == company]
+        if company_data.empty:
+            return empty_chart()
+        return build_ratio_over_time(company_data, company, "Debt/Equity Ratio")
+
+    @render.ui
+    def p2_cash_flows():
+        filtered = p2_filtered_data()
+        if filtered.empty:
+            return ui.div("N/A")
+        row = filtered.iloc[0]
+        op = row["Cash Flow from Operating"]
+        inv = row["Cash Flow from Investing"]
+        fin = row["Cash Flow from Financial Activities"]
+        return ui.div(
+            ui.span(f"Operating: ${op:,.0f}M", class_="kpi-label"),
+            ui.br(),
+            ui.span(f"Investing: ${inv:,.0f}M", class_="kpi-label"),
+            ui.br(),
+            ui.span(f"Financing: ${fin:,.0f}M", class_="kpi-label"),
+        )
+
+    @render_altair
+    def p2_cash_flow_chart():
+        company = input.company()
+        company_data = df[df["Company"] == company]
+        if company_data.empty:
+            return empty_chart()
+        return build_cash_flows(company_data, company)
