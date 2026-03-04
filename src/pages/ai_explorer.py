@@ -84,7 +84,7 @@ def ai_explorer_ui():
 
     qc = _get_qc()
     sidebar = ui.sidebar(
-        qc.sidebar(),
+        qc.ui(),
         open="desktop",
         width=400,
     )
