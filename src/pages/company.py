@@ -1,8 +1,11 @@
 """Page 2: Company Financial Health — UI layout and server logic."""
 
-from shiny import reactive, ui
+from shiny import reactive, render, ui
+from shinywidgets import output_widget, render_altair
 
-from data import ALL_SECTORS, CATEGORY_COMPANIES
+from charts.altair_charts import build_revenue_over_time
+from components.empty_chart import empty_chart
+from data import ALL_SECTORS, CATEGORY_COMPANIES, df
 
 
 def company_ui():
@@ -33,41 +36,44 @@ def company_ui():
         open="desktop",
     )
 
-    # Profitability cards (hardcoded placeholders — replaced by Task 6)
+    # Profitability cards (reactive outputs)
     card_npm = ui.card(
         ui.card_header("Net Profit Margin"),
         ui.div(
-            ui.span("25.3%", class_="kpi-value"),
-            ui.br(),
-            ui.span("[Sparkline chart placeholder]", class_="kpi-label"),
+            ui.tags.h3(
+                ui.output_text("p2_npm", inline=True),
+                class_="kpi-value",
+            ),
         ),
     )
     card_roe = ui.card(
         ui.card_header("Return on Equity (ROE)"),
         ui.div(
-            ui.span("196.96%", class_="kpi-value"),
-            ui.br(),
-            ui.span("[Sparkline chart placeholder]", class_="kpi-label"),
+            ui.tags.h3(
+                ui.output_text("p2_roe", inline=True),
+                class_="kpi-value",
+            ),
         ),
-        style="height: calc(50% - 0.5rem);",
     )
     card_rev_income = ui.card(
         ui.card_header("Revenue & Net Income"),
-        ui.tags.span("REVENUE", class_="kpi-label"),
         ui.div(
-            ui.span("$394,328M", class_="kpi-value"),
+            ui.tags.h3(
+                ui.output_text("p2_revenue", inline=True),
+                class_="kpi-value",
+            ),
+            ui.tags.span("Revenue", class_="kpi-label"),
             ui.br(),
-            ui.span("Revenue", class_="kpi-label"),
-            ui.br(),
-            ui.br(),
-            ui.span("$99,803M", class_="kpi-value"),
-            ui.br(),
-            ui.span("Net Income", class_="kpi-label"),
+            ui.tags.h3(
+                ui.output_text("p2_net_income", inline=True),
+                class_="kpi-value",
+            ),
+            ui.tags.span("Net Income", class_="kpi-label"),
         ),
     )
     card_rev_time = ui.card(
         ui.card_header("Revenue Over Time"),
-        ui.p("[Bar chart placeholder — yearly revenue from 2009-2023]"),
+        output_widget("p2_revenue_chart"),
         full_screen=True,
     )
     profitability_section = ui.div(
@@ -148,3 +154,54 @@ def company_server(input, output, session):
         companies = CATEGORY_COMPANIES.get(input.category(), [])
         selected = companies[0] if companies else None
         ui.update_select("company", choices=companies, selected=selected)
+
+    @reactive.calc
+    def p2_filtered_data():
+        category = input.category()
+        company = input.company()
+        year = int(input.year())
+        return df[
+            (df["Category"] == category)
+            & (df["Company"] == company)
+            & (df["Year"] == year)
+        ]
+
+    @render.text
+    def p2_npm():
+        filtered = p2_filtered_data()
+        if filtered.empty:
+            return "N/A"
+        value = filtered["Net Profit Margin"].iloc[0]
+        return f"{value:.1f}%"
+
+    @render.text
+    def p2_roe():
+        filtered = p2_filtered_data()
+        if filtered.empty:
+            return "N/A"
+        value = filtered["ROE"].iloc[0]
+        return f"{value:.2f}%"
+
+    @render.text
+    def p2_revenue():
+        filtered = p2_filtered_data()
+        if filtered.empty:
+            return "N/A"
+        value = filtered["Revenue"].iloc[0]
+        return f"${value:,.0f}M"
+
+    @render.text
+    def p2_net_income():
+        filtered = p2_filtered_data()
+        if filtered.empty:
+            return "N/A"
+        value = filtered["Net Income"].iloc[0]
+        return f"${value:,.0f}M"
+
+    @render_altair
+    def p2_revenue_chart():
+        company = input.company()
+        company_data = df[df["Company"] == company]
+        if company_data.empty:
+            return empty_chart()
+        return build_revenue_over_time(company_data, company)
