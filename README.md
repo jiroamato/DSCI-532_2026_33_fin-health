@@ -20,6 +20,12 @@ Investment analysts and portfolio managers often need to compare financial perfo
 Below is a short preview of the dashboard interface.
 ![Dashboard demo](img/demo.gif)
 
+## Features
+
+- **Sector Analysis** — Compare profitability metrics across sectors with interactive charts and peer benchmarking
+- **Company Health** — Deep dive into individual company financials with KPIs, ratio trends, and cash flow charts
+- **AI Explorer** — Filter and explore the dataset using natural language powered by LLM (querychat)
+
 ## Deployment
 
 | Build | URL |
