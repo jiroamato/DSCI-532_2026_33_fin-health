@@ -1,13 +1,16 @@
 from pathlib import Path
 import subprocess
-import altair as alt
 import pandas as pd
 from shiny import App, reactive, render, ui
 from shinywidgets import output_widget, render_altair
 
 from data import df, CATEGORY_COMPANIES, ALL_SECTORS, METRIC_CHOICES
 from components.kpi_card import kpi_card
-from components.empty_chart import empty_chart
+from charts.altair_charts import (
+    build_sector_bar,
+    build_metric_trend,
+    build_peer_scatter,
+)
 
 # Load custom CSS from external file
 CSS_PATH = Path(__file__).parent.parent / "assets" / "custom_styles.css"
@@ -442,26 +445,7 @@ def server(input, output, session):
         filtered = p1_filtered_data()
         metric = p1_selected_metric()
         unit = METRIC_CHOICES[metric]
-
-        avg_by_sector = filtered.groupby("Category")[metric].mean().reset_index()
-        if avg_by_sector.empty:
-            return empty_chart()
-        chart = (
-            alt.Chart(avg_by_sector)
-            .mark_bar()
-            .encode(
-                x=alt.X("Category:N", title="Sector", sort="-y"),
-                y=alt.Y(f"{metric}:Q", title=f"{metric} {unit}"),
-                color=alt.Color(
-                    "Category:N",
-                    scale=alt.Scale(scheme="viridis"),
-                    legend=None,
-                ),
-                tooltip=["Category", alt.Tooltip(f"{metric}:Q", format=".2f")],
-            )
-            .properties(title=f"Average {metric} by Sector", width="container")
-        )
-        return chart
+        return build_sector_bar(filtered, metric, unit)
 
     # Metric Based Trend
     # Change p1_chart_b header based on metric filter selection
@@ -475,25 +459,7 @@ def server(input, output, session):
         filtered = p1_filtered_data()
         metric = p1_selected_metric()
         unit = METRIC_CHOICES[metric]
-
-        observed_trend = filtered.groupby(["Year", "Category"], as_index=False)[
-            metric
-        ].mean()
-
-        if observed_trend.empty:
-            return empty_chart()
-
-        metric_trend = (
-            alt.Chart(observed_trend)
-            .mark_line(point=True)
-            .encode(
-                alt.X("Year:O", title="Year"),
-                alt.Y(f"{metric}:Q", title=f"{metric} {unit}"),
-                color=alt.Color("Category:N", scale=alt.Scale(scheme="viridis")),
-                tooltip=["Year", "Category", alt.Tooltip(f"{metric}:Q", format=".2f")],
-            )
-        )
-        return metric_trend
+        return build_metric_trend(filtered, metric, unit)
 
     # Peer Benchmarking Scatterplot
     @render_altair
@@ -501,28 +467,7 @@ def server(input, output, session):
         filtered = p1_filtered_data()
         metric = p1_selected_metric()
         unit = METRIC_CHOICES[metric]
-
-        if filtered.empty:
-            return empty_chart()
-
-        chart = (
-            alt.Chart(filtered)
-            .mark_circle(size=60)
-            .encode(
-                x=alt.X("Revenue:Q", title="Revenue ($)"),
-                y=alt.Y(f"{metric}:Q", title=f"{metric} {unit}"),
-                color=alt.Color("Category:N", scale=alt.Scale(scheme="viridis")),
-                tooltip=[
-                    "Company",
-                    "Category",
-                    "Year:O",
-                    alt.Tooltip("Revenue:Q", format=",.0f"),
-                    alt.Tooltip(f"{metric}:Q", format=",.2f"),
-                ],
-            )
-            .properties(title=f"Revenue vs {metric}", width="container")
-        )
-        return chart
+        return build_peer_scatter(filtered, metric, unit)
 
     # Company Details
     @render.data_frame
