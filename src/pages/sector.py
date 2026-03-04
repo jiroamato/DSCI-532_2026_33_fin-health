@@ -62,11 +62,14 @@ def sector_ui():
         trend_id="p1_revenue_trend",
         label_id="p1_revenue_growth_label",
     )
-    kpi_row = ui.layout_columns(
-        card_avg_margin,
-        card_top_sector,
-        card_revenue_growth,
-        col_widths=[4, 4, 4],
+    kpi_row = ui.div(
+        ui.layout_columns(
+            card_avg_margin,
+            card_top_sector,
+            card_revenue_growth,
+            col_widths=[4, 4, 4],
+        ),
+        class_="kpi-card-row",
     )
 
     # Chart cards
@@ -102,23 +105,13 @@ def sector_ui():
         col_widths=[6, 6],
     )
 
-    overview_section = ui.div(
-        ui.div("OVERVIEW", class_="section-label section-label-blue"),
-        kpi_row,
-        class_="grid-section",
-    )
-    analysis_section = ui.div(
-        ui.div("ANALYSIS", class_="section-label section-label-red"),
-        ui.div(chart_row, peer_row),
-        class_="grid-section",
-    )
-
     return ui.layout_sidebar(
         sidebar,
         ui.page_fillable(
             ui.h2("US Corporate Profitability Analytics"),
-            overview_section,
-            analysis_section,
+            kpi_row,
+            chart_row,
+            peer_row,
         ),
     )
 

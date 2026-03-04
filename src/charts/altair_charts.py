@@ -26,6 +26,7 @@ def _register_theme():
             "config": {
                 "background": "transparent",
                 "view": {"stroke": "transparent"},
+                "autosize": {"type": "fit", "contains": "padding"},
                 "axis": {
                     "labelFont": "DM Sans, sans-serif",
                     "titleFont": "DM Sans, sans-serif",
@@ -33,21 +34,36 @@ def _register_theme():
                     "titleColor": "#0f172a",
                     "gridColor": "#e2e8f0",
                     "domainColor": "#e2e8f0",
-                    "labelFontSize": 11,
-                    "titleFontSize": 12,
+                    "labelFontSize": 10,
+                    "titleFontSize": 11,
+                    "labelLimit": 80,
+                    "titlePadding": 4,
+                    "labelPadding": 3,
+                },
+                "axisX": {
+                    "labelAngle": -45,
+                    "labelAlign": "right",
+                    "labelBaseline": "top",
                 },
                 "title": {
                     "font": "DM Sans, sans-serif",
                     "color": "#0f172a",
-                    "fontSize": 13,
+                    "fontSize": 12,
                     "fontWeight": 600,
+                    "offset": 4,
                 },
                 "legend": {
                     "labelFont": "DM Sans, sans-serif",
                     "titleFont": "DM Sans, sans-serif",
                     "labelColor": "#475569",
                     "titleColor": "#0f172a",
+                    "labelFontSize": 9,
+                    "titleFontSize": 10,
+                    "symbolSize": 40,
+                    "columnPadding": 4,
+                    "rowPadding": 1,
                 },
+                "padding": {"top": 5, "bottom": 5, "left": 5, "right": 5},
             }
         }
 
@@ -84,7 +100,9 @@ def build_sector_bar(data: pd.DataFrame, metric: str, unit: str) -> alt.Chart:
             ),
             tooltip=["Category", alt.Tooltip(f"{metric}:Q", format=".2f")],
         )
-        .properties(title=f"Average {metric} by Sector", width="container")
+        .properties(
+            title=f"Average {metric} by Sector", width="container", height="container"
+        )
     )
 
 
@@ -104,6 +122,7 @@ def build_metric_trend(data: pd.DataFrame, metric: str, unit: str) -> alt.Chart:
             color=alt.Color("Category:N", scale=alt.Scale(range=PALETTE)),
             tooltip=["Year", "Category", alt.Tooltip(f"{metric}:Q", format=".2f")],
         )
+        .properties(width="container", height="container")
     )
 
 
@@ -126,28 +145,41 @@ def build_peer_scatter(data: pd.DataFrame, metric: str, unit: str) -> alt.Chart:
                 alt.Tooltip(f"{metric}:Q", format=",.2f"),
             ],
         )
-        .properties(title=f"Revenue vs {metric}", width="container")
+        .properties(title=f"Revenue vs {metric}", width="container", height="container")
     )
 
 
 def build_revenue_over_time(data: pd.DataFrame, company: str) -> alt.Chart:
-    """Bar chart of yearly revenue for a single company (Page 2)."""
+    """Grouped bar chart of Revenue and Net Income over time (Page 2)."""
     if data.empty:
         return empty_chart()
+    melted = data[["Year", "Revenue", "Net Income"]].melt(
+        id_vars="Year", var_name="Metric", value_name="Amount"
+    )
     return (
-        alt.Chart(data)
-        .mark_bar(color="#2563eb", cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
+        alt.Chart(melted)
+        .mark_bar(cornerRadiusTopLeft=3, cornerRadiusTopRight=3)
         .encode(
             x=alt.X("Year:O", title="Year"),
-            y=alt.Y("Revenue:Q", title="Revenue ($ millions)"),
+            y=alt.Y("Amount:Q", title="$ millions"),
+            color=alt.Color(
+                "Metric:N",
+                scale=alt.Scale(
+                    domain=["Revenue", "Net Income"],
+                    range=["#2563eb", "#009e73"],
+                ),
+            ),
+            xOffset="Metric:N",
             tooltip=[
                 alt.Tooltip("Year:O"),
-                alt.Tooltip("Revenue:Q", format=",.0f"),
+                alt.Tooltip("Metric:N"),
+                alt.Tooltip("Amount:Q", format=",.0f"),
             ],
         )
         .properties(
-            title=f"Revenue Over Time — {company}",
+            title=f"Revenue & Net Income — {company}",
             width="container",
+            height="container",
         )
     )
 
@@ -179,6 +211,7 @@ def build_ratio_over_time(data: pd.DataFrame, company: str, metric: str) -> alt.
     return (line + area).properties(
         title=f"{metric} Over Time — {company}",
         width="container",
+        height="container",
     )
 
 
@@ -198,7 +231,7 @@ def build_company_comparison_bar(
             color=alt.Color("Company:N", scale=alt.Scale(range=PALETTE), legend=None),
             tooltip=["Company", alt.Tooltip(f"{metric}:Q", format=".2f")],
         )
-        .properties(title=f"{metric} by Company", width="container")
+        .properties(title=f"{metric} by Company", width="container", height="container")
     )
 
 
@@ -222,7 +255,9 @@ def build_single_company_summary(
             color=alt.Color("Metric:N", scale=alt.Scale(range=PALETTE), legend=None),
             tooltip=["Metric", alt.Tooltip("Value:Q", format=",.2f")],
         )
-        .properties(title=f"Key Metrics — {company}", width="container")
+        .properties(
+            title=f"Key Metrics — {company}", width="container", height="container"
+        )
     )
 
 
@@ -240,7 +275,9 @@ def build_company_trend(data: pd.DataFrame, metric: str, unit: str) -> alt.Chart
             color=alt.Color("Company:N", scale=alt.Scale(range=PALETTE)),
             tooltip=["Year", "Company", alt.Tooltip(f"{metric}:Q", format=".2f")],
         )
-        .properties(title=f"{metric} Trend by Company", width="container")
+        .properties(
+            title=f"{metric} Trend by Company", width="container", height="container"
+        )
     )
 
 
@@ -282,5 +319,6 @@ def build_cash_flows(data: pd.DataFrame, company: str) -> alt.Chart:
         .properties(
             title=f"Cash Flows — {company}",
             width="container",
+            height="container",
         )
     )

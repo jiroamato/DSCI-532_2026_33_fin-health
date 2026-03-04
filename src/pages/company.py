@@ -40,15 +40,20 @@ def company_ui():
         open="desktop",
     )
 
-    # Profitability cards (reactive outputs)
+    # Profitability cards — mirror Financial Health layout (KPI + status + chart)
     card_npm = ui.card(
         ui.card_header("Net Profit Margin"),
         ui.div(
             ui.tags.h3(
                 ui.output_text("p2_npm", inline=True),
                 class_="kpi-value",
+                style="display: inline;",
             ),
+            ui.output_ui("p2_npm_status", style="display: inline;"),
+            class_="kpi-value-row",
         ),
+        output_widget("p2_npm_chart"),
+        full_screen=True,
     )
     card_roe = ui.card(
         ui.card_header("Return on Equity (ROE)"),
@@ -56,27 +61,17 @@ def company_ui():
             ui.tags.h3(
                 ui.output_text("p2_roe", inline=True),
                 class_="kpi-value",
+                style="display: inline;",
             ),
+            ui.output_ui("p2_roe_status", style="display: inline;"),
+            class_="kpi-value-row",
         ),
+        output_widget("p2_roe_chart"),
+        full_screen=True,
     )
     card_rev_income = ui.card(
         ui.card_header("Revenue & Net Income"),
-        ui.div(
-            ui.tags.h3(
-                ui.output_text("p2_revenue", inline=True),
-                class_="kpi-value",
-            ),
-            ui.tags.span("Revenue", class_="kpi-label"),
-            ui.br(),
-            ui.tags.h3(
-                ui.output_text("p2_net_income", inline=True),
-                class_="kpi-value",
-            ),
-            ui.tags.span("Net Income", class_="kpi-label"),
-        ),
-    )
-    card_rev_time = ui.card(
-        ui.card_header("Revenue Over Time"),
+        ui.output_ui("p2_rev_income_summary"),
         output_widget("p2_revenue_chart"),
         full_screen=True,
     )
@@ -86,8 +81,7 @@ def company_ui():
             card_npm,
             card_roe,
             card_rev_income,
-            card_rev_time,
-            col_widths=[3, 3, 3, 3],
+            col_widths=[4, 4, 4],
         ),
         class_="grid-section",
     )
@@ -142,9 +136,6 @@ def company_ui():
         sidebar,
         ui.page_fillable(
             ui.h2("Financial Health Dashboard"),
-            ui.p(
-                "A comprehensive KPI dashboard highlighting key financial metrics of public companies."
-            ),
             profitability_section,
             health_section,
         ),
@@ -190,21 +181,61 @@ def company_server(input, output, session):
         value = filtered["ROE"].iloc[0]
         return f"{value:.2f}%"
 
-    @render.text
-    def p2_revenue():
+    @render.ui
+    def p2_npm_status():
         filtered = p2_filtered_data()
         if filtered.empty:
-            return "N/A"
-        value = filtered["Revenue"].iloc[0]
-        return f"${value:,.0f}M"
+            return ui.tags.span()
+        value = filtered["Net Profit Margin"].iloc[0]
+        if value >= 10:
+            return ui.tags.span("\u2713", class_="kpi-status healthy")
+        elif value >= 0:
+            return ui.tags.span("!", class_="kpi-status warning")
+        else:
+            return ui.tags.span("\u2717", class_="kpi-status danger")
 
-    @render.text
-    def p2_net_income():
+    @render_altair
+    def p2_npm_chart():
+        company = input.company()
+        company_data = df[df["Company"] == company]
+        if company_data.empty:
+            return empty_chart()
+        return build_ratio_over_time(company_data, company, "Net Profit Margin")
+
+    @render.ui
+    def p2_roe_status():
         filtered = p2_filtered_data()
         if filtered.empty:
-            return "N/A"
-        value = filtered["Net Income"].iloc[0]
-        return f"${value:,.0f}M"
+            return ui.tags.span()
+        value = filtered["ROE"].iloc[0]
+        if value >= 15:
+            return ui.tags.span("\u2713", class_="kpi-status healthy")
+        elif value >= 0:
+            return ui.tags.span("!", class_="kpi-status warning")
+        else:
+            return ui.tags.span("\u2717", class_="kpi-status danger")
+
+    @render_altair
+    def p2_roe_chart():
+        company = input.company()
+        company_data = df[df["Company"] == company]
+        if company_data.empty:
+            return empty_chart()
+        return build_ratio_over_time(company_data, company, "ROE")
+
+    @render.ui
+    def p2_rev_income_summary():
+        filtered = p2_filtered_data()
+        if filtered.empty:
+            return ui.div("N/A")
+        rev = filtered["Revenue"].iloc[0]
+        ni = filtered["Net Income"].iloc[0]
+        return ui.div(
+            ui.span(f"Revenue: ${rev:,.0f}M", class_="kpi-label"),
+            ui.span(" | ", style="color: var(--slate-400);"),
+            ui.span(f"Net Income: ${ni:,.0f}M", class_="kpi-label"),
+            style="padding: 0.25rem 0;",
+        )
 
     @render_altair
     def p2_revenue_chart():
