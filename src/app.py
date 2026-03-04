@@ -5,6 +5,7 @@ from pathlib import Path
 
 from shiny import App, ui
 
+from pages.ai_explorer import ai_explorer_server, ai_explorer_ui
 from pages.company import company_server, company_ui
 from pages.sector import sector_server, sector_ui
 
@@ -16,9 +17,11 @@ with open(CSS_PATH, "r") as css_file:
 # Navbar with page tabs
 nav_sector = ui.nav_panel("Sector Analysis", sector_ui())
 nav_company = ui.nav_panel("Company Health", company_ui())
+nav_ai = ui.nav_panel("AI Explorer", ai_explorer_ui())
 navbar = ui.page_navbar(
     nav_sector,
     nav_company,
+    nav_ai,
     title="fin-health",
     id="main_nav",
     fillable=True,
@@ -47,6 +50,7 @@ app_ui = ui.page_fluid(CUSTOM_CSS, navbar, footer)
 def server(input, output, session):
     sector_server(input, output, session)
     company_server(input, output, session)
+    ai_explorer_server(input, output, session)
 
 
 app = App(app_ui, server)
