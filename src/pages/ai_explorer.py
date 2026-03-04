@@ -9,9 +9,11 @@ from shiny import render, ui
 from shinywidgets import output_widget, render_altair
 
 from charts.altair_charts import (
+    build_cash_flows,
     build_company_comparison_bar,
     build_company_trend,
     build_metric_trend,
+    build_peer_scatter,
     build_sector_bar,
     build_single_company_summary,
 )
@@ -257,8 +259,15 @@ def ai_explorer_server(input, output, session):
         if filtered.empty:
             return empty_chart()
         n_companies, n_sectors, n_years = _data_shape(filtered)
+        if n_companies == 1:
+            company = filtered["Company"].iloc[0]
+            return (
+                build_company_trend(filtered, metric, unit)
+                if n_years > 1
+                else build_cash_flows(filtered, company)
+            )
         if n_years == 1:
-            return build_company_comparison_bar(filtered, metric, unit)
+            return build_peer_scatter(filtered, metric, unit)
         if n_companies <= 5:
             return build_company_trend(filtered, metric, unit)
         return build_metric_trend(filtered, metric, unit)
