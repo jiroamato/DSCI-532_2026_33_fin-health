@@ -5,50 +5,12 @@ import pandas as pd
 from shiny import App, reactive, render, ui
 from shinywidgets import output_widget, render_altair
 
-
-DATA_PATH = Path(__file__).parent.parent / "data" / "raw" / "financial_statement.csv"
-
-
-def load_data(path: Path) -> pd.DataFrame:
-    """Load and clean the financial dataset."""
-    if not path.exists():
-        raise FileNotFoundError(f"Dataset not found: {path}")
-    data = pd.read_csv(path, encoding="utf-8-sig")
-    data.columns = data.columns.str.strip()
-    data["Category"] = data["Category"].str.upper()
-    return data
-
-
-df = load_data(DATA_PATH)
+from data import df, CATEGORY_COMPANIES, ALL_SECTORS, METRIC_CHOICES
 
 # Load custom CSS from external file
 CSS_PATH = Path(__file__).parent.parent / "assets" / "custom_styles.css"
 with open(CSS_PATH, "r") as css_file:
     CUSTOM_CSS = ui.tags.style(css_file.read())
-
-CATEGORY_COMPANIES = {
-    "BANK": ["AIG", "BCS"],
-    "ELEC": ["INTC", "NVDA"],
-    "FINANCE": ["SHLDQ"],
-    "FINTECH": ["PYPL"],
-    "FOOD": ["MCD"],
-    "IT": ["AAPL", "GOOG", "MSFT"],
-    "LOGI": ["AMZN"],
-    "MANUFACTURING": ["PCG"],
-}
-ALL_SECTORS = sorted(CATEGORY_COMPANIES.keys())
-
-METRIC_CHOICES = {
-    "Net Profit Margin": "%",
-    "ROE": "%",
-    "ROA": "%",
-    "ROI": "%",
-    "Revenue": "USD",
-    "Net Income": "USD",
-    "EBITDA": "USD",
-    "Current Ratio": "",
-    "Debt/Equity Ratio": "",
-}
 
 
 # Page 1: Sector Analysis
