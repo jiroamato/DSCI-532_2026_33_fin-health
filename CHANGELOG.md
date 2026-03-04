@@ -5,10 +5,37 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased] - (2026-03-08)
+## [0.3.0] - (2026-03-04)
 
 ### Added
-- Implementation of Page 2
+- **AI Explorer page** — natural-language data filtering powered by querychat (ChatGithub LLM)
+  - Chat sidebar for conversational data queries
+  - Dataframe output displaying filtered results with row count
+  - Two reactive Altair charts (sector bar chart + metric trend line) driven by AI-filtered data
+  - CSV download button for exporting filtered data
+- **Page 2 reactive KPIs and charts** — replaced all hardcoded placeholders:
+  - Net Profit Margin, ROE, Revenue, Net Income KPIs
+  - Revenue Over Time bar chart
+  - Current Ratio and Debt/Equity Ratio KPIs with line charts over time
+  - Cash Flows KPI with grouped bar chart (Operating, Investing, Financing)
+
+### Changed
+- **Modular architecture refactor** — decomposed monolithic `app.py` into:
+  - `data.py` — data loading, cleaning, and shared constants
+  - `components/` — reusable `kpi_card()` and `empty_chart()` helpers
+  - `charts/altair_charts.py` — 6 pure Altair chart builder functions
+  - `pages/sector.py`, `pages/company.py`, `pages/ai_explorer.py` — per-page UI + server modules
+  - `app.py` reduced to ~60-line entry point
+- **CSS cleanup** — consolidated duplicate rules, scoped wildcard transitions, added CSS variables
+
+### Fixed
+- Duplicate `.section-label` CSS rule consolidated
+- Wildcard `*` transition scoped to specific interactive elements
+- Hardcoded colors in section labels replaced with CSS variables
+- Posit Connect deployment: added `sys.path` fix for module resolution
+
+### Known Issues
+- AI Explorer requires `GITHUB_TOKEN` environment variable for LLM access; shows fallback message when unavailable
 
 ## [v0.2.0] - (2026-02-28)
 
