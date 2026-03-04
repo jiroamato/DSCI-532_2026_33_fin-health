@@ -1,5 +1,8 @@
 """Page 3: AI Explorer — natural-language data filtering with querychat."""
 
+import os
+from functools import cache
+
 import querychat
 from chatlas import ChatGithub
 from shiny import render, ui
@@ -48,17 +51,38 @@ Hi! I can help you explore the financial dataset. Try one of these:
 * <span class="suggestion">Which company had the highest ROE?</span>
 """
 
-qc = querychat.QueryChat(
-    df,
-    "financial_data",
-    data_description=DATA_DESCRIPTION,
-    greeting=GREETING,
-    client=ChatGithub(model="gpt-4.1-mini"),
-)
+
+@cache
+def _get_qc():
+    """Lazily create the QueryChat instance (deferred until first use)."""
+    return querychat.QueryChat(
+        df,
+        "financial_data",
+        data_description=DATA_DESCRIPTION,
+        greeting=GREETING,
+        client=ChatGithub(model="gpt-4.1-mini"),
+    )
+
+
+def _has_token():
+    """Check whether GITHUB_TOKEN is available."""
+    return bool(os.environ.get("GITHUB_TOKEN"))
 
 
 def ai_explorer_ui():
     """Return the AI Explorer page layout."""
+    if not _has_token():
+        return ui.page_fillable(
+            ui.h2("AI Explorer"),
+            ui.card(
+                ui.card_header("Configuration Required"),
+                ui.p(
+                    "Set the GITHUB_TOKEN environment variable to enable the AI Explorer."
+                ),
+            ),
+        )
+
+    qc = _get_qc()
     sidebar = ui.sidebar(
         qc.sidebar(),
         open="desktop",
@@ -112,6 +136,10 @@ def ai_explorer_ui():
 
 def ai_explorer_server(input, output, session):
     """Server logic for the AI Explorer page."""
+    if not _has_token():
+        return
+
+    qc = _get_qc()
     qc_vals = qc.server(input, output, session)
 
     @render.text
