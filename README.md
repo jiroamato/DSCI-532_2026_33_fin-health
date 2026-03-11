@@ -73,6 +73,12 @@ conda activate fin-health
 shiny run --reload src/app.py
 ```
 
+5. Run fin-health Shiny dashboard locally:
+
+```bash
+shiny run --reload src/app.py
+```
+
 ## Contributors
 
 - Seungmyun Park
