@@ -187,7 +187,23 @@ Each entry includes: the term, a plain-language definition, how it is calculated
 
 ### 3.3 Integration with querychat
 
-Connect the knowledge base to querychat so the LLM can retrieve relevant glossary entries when answering user questions. The implementation approach will be documented in the experimentation notebook.
+The glossary is loaded at startup by `_load_glossary()` in `src/pages/ai_explorer.py`
+and injected into the LLM's system prompt inside `<finance_glossary>` XML tags via
+`_build_extra_instructions()`. This approach appends the full glossary text to the
+`EXTRA_INSTRUCTIONS` string, which is passed to `querychat.QueryChat()` as the
+`extra_instructions` parameter.
+
+When a user asks about a financial term (e.g., "What does ROE mean?"), the LLM
+retrieves the definition from the glossary context rather than generating one from
+memory, ensuring accurate and consistent explanations grounded in the knowledge base.
+
+Rule 7 in `EXTRA_INSTRUCTIONS` explicitly directs the LLM to consult the
+`<finance_glossary>` for term definitions:
+
+> "When the user asks what a metric means or how to interpret a value, consult the
+> <finance_glossary> below and cite the definition, formula, and healthy range.
+> Always ground your explanation in the glossary rather than generating definitions
+> from memory."
 
 ### 3.4 Documentation Requirements
 
