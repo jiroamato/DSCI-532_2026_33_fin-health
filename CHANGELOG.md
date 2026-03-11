@@ -5,37 +5,36 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.3.0] - (2026-03-04)
+## [v0.3.0] - (2026-03-08)
 
 ### Added
-- **AI Explorer page** — natural-language data filtering powered by querychat (ChatGithub LLM)
-  - Chat sidebar for conversational data queries
-  - Dataframe output displaying filtered results with row count
-  - Two reactive Altair charts (sector bar chart + metric trend line) driven by AI-filtered data
-  - CSV download button for exporting filtered data
-- **Page 2 reactive KPIs and charts** — replaced all hardcoded placeholders:
-  - Net Profit Margin, ROE, Revenue, Net Income KPIs
-  - Revenue Over Time bar chart
-  - Current Ratio and Debt/Equity Ratio KPIs with line charts over time
-  - Cash Flows KPI with grouped bar chart (Operating, Investing, Financing)
+- **Natural Language Querying**: Integrated a new `fin-chat` page featuring `querychat` for intuitive, natural-language data filtering and exploration.
+- **Interactive Data Grid**: Added a dedicated Dataframe output component to display granular filtered data.
+- **Intelligent Visualization**: Implemented two adaptive charts that automatically adjust their visualization type based on the dimensions and shape of the data.
+- **Data Portability**: Included a CSV download button to allow users to export their filtered datasets for external analysis.
+- **Company Health Deep Dive (Page 2)**:
+    - Realized full reactivity for key performance indicators including Net Profit Margin, ROE, Current Ratio, and Debt/Equity.
+    - Added time-series visualizations for Revenue, Financial Ratios, and Cash Flows.
+    - Visual health status indicators (Healthy/Warning/Danger) for immediate KPI assessment.
+- **Quality Assurance**: Added an LLM behavior testing suite and an evaluation dataset to ensure chat reliability.
 
 ### Changed
-- **Modular architecture refactor** — decomposed monolithic `app.py` into:
-  - `data.py` — data loading, cleaning, and shared constants
-  - `components/` — reusable `kpi_card()` and `empty_chart()` helpers
-  - `charts/altair_charts.py` — 6 pure Altair chart builder functions
-  - `pages/sector.py`, `pages/company.py`, `pages/ai_explorer.py` — per-page UI + server modules
-  - `app.py` reduced to ~60-line entry point
-- **CSS cleanup** — consolidated duplicate rules, scoped wildcard transitions, added CSS variables
+- **Modular Refactor**: Reconstructed the application into a scalable directory structure, separating logic into `data.py`, `components/`, `charts/`, and `pages/`.
+- **Streamlined Entry Point**: Reduced `app.py` to a clean, 60-line routing file to improve maintainability.
+- **Data Schema Optimization**:
+    - Transitioned `METRIC_CHOICES` from a list to a dictionary to map metrics to their respective units.
+    - Standardized `CATEGORY_COMPANIES` keys to uppercase to ensure strict alignment with the source dataset.
+- **UI/UX Refinement**:
+    - Migrated all styles to an external CSS file utilizing 17 custom design tokens (CSS properties).
+    - Updated typography to DM Sans and implemented a modern, flat-card aesthetic.
 
 ### Fixed
-- Duplicate `.section-label` CSS rule consolidated
-- Wildcard `*` transition scoped to specific interactive elements
-- Hardcoded colors in section labels replaced with CSS variables
-- Posit Connect deployment: added `sys.path` fix for module resolution
+- **CSS Optimization**: Resolved duplicate `.kpi-label` and `.section-label` rules and cleaned up unused classes.
+- Wildcard `*` transition scoped to interactive elements only.
+- **Page 2 (Company Health) Logic**: Replaced all Milestone 2 placeholders with fully functional, reactive data outputs.
 
-### Known Issues
-- AI Explorer requires `GITHUB_TOKEN` environment variable for LLM access; shows fallback message when unavailable
+### Reflection
+The primary focus of this milestone was technical debt reduction and extensibility. By refactoring the codebase into a modular architecture, the project has moved away from a monolithic script toward a professional software engineering pattern. This separation of concerns - where charts, data processing, and UI components live in independent modules - makes the dashboard significantly easier to debug and scale. Additionally, the integration of natural language filtering via the `fin-chat` page represents a shift toward more accessible, user-centric finance tools.
 
 ## [v0.2.0] - (2026-02-28)
 
