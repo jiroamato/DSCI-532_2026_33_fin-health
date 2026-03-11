@@ -5,15 +5,15 @@ import pandas as pd
 
 from components.empty_chart import empty_chart
 
-# Custom warm palette for categorical data
+# Okabe-Ito colour-blind-safe categorical palette
 PALETTE = [
-    "#2563eb",
-    "#c0392b",
-    "#f59e0b",
-    "#009e73",
-    "#8e44ad",
-    "#e67e22",
-    "#1abc9c",
+    "#E69F00",
+    "#56B4E9",
+    "#009E73",
+    "#F0E442",
+    "#0072B2",
+    "#D55E00",
+    "#CC79A7",
     "#334155",
 ]
 
@@ -122,7 +122,11 @@ def build_metric_trend(data: pd.DataFrame, metric: str, unit: str) -> alt.Chart:
             color=alt.Color("Category:N", scale=alt.Scale(range=PALETTE)),
             tooltip=["Year", "Category", alt.Tooltip(f"{metric}:Q", format=".2f")],
         )
-        .properties(width="container", height="container")
+        .properties(
+            title=f"{metric} Trend by Sector",
+            width="container",
+            height="container",
+        )
     )
 
 
@@ -215,6 +219,49 @@ def build_ratio_over_time(data: pd.DataFrame, company: str, metric: str) -> alt.
     )
 
 
+def build_cash_flows(data: pd.DataFrame, company: str) -> alt.Chart:
+    """Grouped bar chart of Operating, Investing, Financing cash flows (Page 2)."""
+    if data.empty:
+        return empty_chart()
+
+    cf_cols = {
+        "Cash Flow from Operating": "Operating",
+        "Cash Flow from Investing": "Investing",
+        "Cash Flow from Financial Activities": "Financing",
+    }
+    melted = data[["Year"] + list(cf_cols.keys())].melt(
+        id_vars="Year", var_name="Flow Type", value_name="Amount"
+    )
+    melted["Flow Type"] = melted["Flow Type"].map(cf_cols)
+
+    return (
+        alt.Chart(melted)
+        .mark_bar(cornerRadiusTopLeft=2, cornerRadiusTopRight=2)
+        .encode(
+            x=alt.X("Year:O", title="Year"),
+            y=alt.Y("Amount:Q", title="Cash Flow ($ millions)"),
+            color=alt.Color(
+                "Flow Type:N",
+                scale=alt.Scale(
+                    domain=["Operating", "Investing", "Financing"],
+                    range=["#2563eb", "#c0392b", "#f59e0b"],
+                ),
+            ),
+            xOffset="Flow Type:N",
+            tooltip=[
+                alt.Tooltip("Year:O"),
+                alt.Tooltip("Flow Type:N"),
+                alt.Tooltip("Amount:Q", format=",.0f"),
+            ],
+        )
+        .properties(
+            title=f"Cash Flows — {company}",
+            width="container",
+            height="container",
+        )
+    )
+
+
 def build_company_comparison_bar(
     data: pd.DataFrame, metric: str, unit: str
 ) -> alt.Chart:
@@ -277,48 +324,5 @@ def build_company_trend(data: pd.DataFrame, metric: str, unit: str) -> alt.Chart
         )
         .properties(
             title=f"{metric} Trend by Company", width="container", height="container"
-        )
-    )
-
-
-def build_cash_flows(data: pd.DataFrame, company: str) -> alt.Chart:
-    """Grouped bar chart of Operating, Investing, Financing cash flows (Page 2)."""
-    if data.empty:
-        return empty_chart()
-
-    cf_cols = {
-        "Cash Flow from Operating": "Operating",
-        "Cash Flow from Investing": "Investing",
-        "Cash Flow from Financial Activities": "Financing",
-    }
-    melted = data[["Year"] + list(cf_cols.keys())].melt(
-        id_vars="Year", var_name="Flow Type", value_name="Amount"
-    )
-    melted["Flow Type"] = melted["Flow Type"].map(cf_cols)
-
-    return (
-        alt.Chart(melted)
-        .mark_bar(cornerRadiusTopLeft=2, cornerRadiusTopRight=2)
-        .encode(
-            x=alt.X("Year:O", title="Year"),
-            y=alt.Y("Amount:Q", title="Cash Flow ($ millions)"),
-            color=alt.Color(
-                "Flow Type:N",
-                scale=alt.Scale(
-                    domain=["Operating", "Investing", "Financing"],
-                    range=["#2563eb", "#c0392b", "#f59e0b"],
-                ),
-            ),
-            xOffset="Flow Type:N",
-            tooltip=[
-                alt.Tooltip("Year:O"),
-                alt.Tooltip("Flow Type:N"),
-                alt.Tooltip("Amount:Q", format=",.0f"),
-            ],
-        )
-        .properties(
-            title=f"Cash Flows — {company}",
-            width="container",
-            height="container",
         )
     )

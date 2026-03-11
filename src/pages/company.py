@@ -26,12 +26,7 @@ def company_ui():
         label="Company",
         choices=[],
     )
-    year_select = ui.input_select(
-        id="year",
-        label="Year",
-        choices=[str(y) for y in range(2023, 2008, -1)],
-        selected="2022",
-    )
+    year_select = ui.output_ui("p2_year_slider")
     sidebar = ui.sidebar(
         ui.h4("Analytics Filters"),
         category_select,
@@ -83,7 +78,7 @@ def company_ui():
             card_rev_income,
             col_widths=[4, 4, 4],
         ),
-        class_="grid-section",
+        class_="grid-section grid-section-blue",
     )
 
     # Financial Health cards (reactive outputs)
@@ -129,7 +124,7 @@ def company_ui():
             card_cash_flows,
             col_widths=[4, 4, 4],
         ),
-        class_="grid-section",
+        class_="grid-section grid-section-red",
     )
 
     return ui.layout_sidebar(
@@ -152,11 +147,36 @@ def company_server(input, output, session):
         selected = companies[0] if companies else None
         ui.update_select("company", choices=companies, selected=selected)
 
+    @render.ui
+    def p2_year_slider():
+        company = input.company()
+        company_data = df[df["Company"] == company]
+        if company_data.empty:
+            year_min = int(df["Year"].min())
+            year_max = int(df["Year"].max())
+        else:
+            year_min = int(company_data["Year"].min())
+            year_max = int(company_data["Year"].max())
+        if year_min == year_max:
+            return ui.div(
+                ui.tags.label("Year", class_="control-label"),
+                ui.tags.p(str(year_max), style="font-weight: 600; font-size: 1.1rem;"),
+                ui.input_slider(
+                    id="year", label="", min=year_min, max=year_max,
+                    value=year_max, sep="",
+                ),
+                ui.tags.style("#year-label { display: none; } #year .irs { display: none; }"),
+            )
+        return ui.input_slider(
+            id="year", label="Year", min=year_min, max=year_max,
+            value=year_max, sep="",
+        )
+
     @reactive.calc
     def p2_filtered_data():
         category = input.category()
         company = input.company()
-        year = int(input.year())
+        year = input.year()
         return df[
             (df["Category"] == category)
             & (df["Company"] == company)
@@ -234,7 +254,7 @@ def company_server(input, output, session):
             ui.span(f"Revenue: ${rev:,.0f}M", class_="kpi-label"),
             ui.span(" | ", style="color: var(--slate-400);"),
             ui.span(f"Net Income: ${ni:,.0f}M", class_="kpi-label"),
-            style="padding: 0.25rem 0;",
+            style="padding: 0.25rem 0; text-align: center;",
         )
 
     @render_altair
@@ -288,12 +308,15 @@ def company_server(input, output, session):
         op = row["Cash Flow from Operating"]
         inv = row["Cash Flow from Investing"]
         fin = row["Cash Flow from Financial Activities"]
+        def fmt(v):
+            return f"-${abs(v):,.0f}M" if v < 0 else f"${v:,.0f}M"
         return ui.div(
-            ui.span(f"Operating: ${op:,.0f}M", class_="kpi-label"),
+            ui.span(f"Operating: {fmt(op)}", class_="kpi-label"),
             ui.br(),
-            ui.span(f"Investing: ${inv:,.0f}M", class_="kpi-label"),
+            ui.span(f"Investing: {fmt(inv)}", class_="kpi-label"),
             ui.br(),
-            ui.span(f"Financing: ${fin:,.0f}M", class_="kpi-label"),
+            ui.span(f"Financing: {fmt(fin)}", class_="kpi-label"),
+            style="text-align: center;",
         )
 
     @render.ui

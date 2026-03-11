@@ -3,14 +3,13 @@
 import pandas as pd
 from shiny import reactive, render, ui
 from shinywidgets import output_widget, render_altair
-
+from data import ALL_SECTORS, METRIC_CHOICES, df
+from components.kpi_card import kpi_card
 from charts.altair_charts import (
     build_metric_trend,
     build_peer_scatter,
     build_sector_bar,
 )
-from components.kpi_card import kpi_card
-from data import ALL_SECTORS, METRIC_CHOICES, df
 
 
 def sector_ui():
@@ -29,6 +28,7 @@ def sector_ui():
         label="Sector",
         choices=["All"] + ALL_SECTORS,
         selected="All",
+        multiple=True,
     )
     metric_select = ui.input_selectize(
         id="p1_metric",
@@ -36,15 +36,17 @@ def sector_ui():
         choices=list(METRIC_CHOICES.keys()),
         selected="Net Profit Margin",
     )
+    reset = ui.input_action_button("p1_reset", "Reset Filters")
     sidebar = ui.sidebar(
         ui.h4("Analytics Filters"),
         year_slider,
         sector_select,
         metric_select,
+        reset,
         open="desktop",
     )
 
-    # KPI cards
+    # KPI cards — using the reusable kpi_card() factory
     card_avg_margin = kpi_card(
         header="Avg Profit Margin",
         value_id="p1_avg_margin",
@@ -74,12 +76,12 @@ def sector_ui():
 
     # Chart cards
     card_sector_profitability = ui.card(
-        ui.card_header("Sector Profitability"),
+        ui.card_header("Sector Comparison"),
         output_widget("p1_chart_a"),
         full_screen=True,
     )
     card_trend = ui.card(
-        ui.card_header(ui.output_ui("trend_header")),
+        ui.card_header("Historical Trend"),
         output_widget("p1_chart_b"),
         full_screen=True,
     )
@@ -121,26 +123,40 @@ def sector_server(input, output, session):
 
     @reactive.calc
     def p1_selected_metric():
+        """Return the selected metric, falling back to default if cleared."""
         metric = input.p1_metric()
         if not metric or metric not in METRIC_CHOICES:
             return "Net Profit Margin"
         return metric
 
+    @reactive.effect
+    @reactive.event(input.p1_reset)
+    def _():
+        # Update the year range slider to full range
+        ui.update_slider(
+            "p1_year_range", value=[int(df["Year"].min()), int(df["Year"].max())]
+        )
+        # Update the sector select to "All"
+        ui.update_selectize("p1_sector", selected="All")
+        # Update the metric select to default
+        ui.update_select("p1_metric", selected="Net Profit Margin")
+
     @reactive.calc
     def p1_filtered_data():
+        """Filter dataset by selected year range and sector."""
         year_min, year_max = input.p1_year_range()
         sector = input.p1_sector()
-        if not sector:
-            sector = "All"
         filtered = df[(df["Year"] >= year_min) & (df["Year"] <= year_max)]
-        if sector != "All":
-            filtered = filtered[filtered["Category"] == sector]
+        if sector and "All" not in sector:
+            filtered = filtered[filtered["Category"].isin(sector)]
         return filtered
 
-    # --- KPI outputs ---
-
+    # KPI outputs
+    # ---------------Avg Profit Margin---------------
     @render.text
     def p1_avg_margin():
+        """Calculate Average profit margin from filtered data.
+        Return 'Data Unavailable' for empty dataset"""
         filtered = p1_filtered_data()
         if filtered.empty:
             return "Data Unavailable"
@@ -149,12 +165,15 @@ def sector_server(input, output, session):
 
     @render.ui
     def p1_margin_trend():
+        """Render trend indicator for profit margin based on actual data."""
         filtered_df = p1_filtered_data()
         if filtered_df.empty:
             return ui.tags.span()
+        # Get years sorted
         years = sorted(filtered_df["Year"].unique())
         if len(years) < 2:
-            return ui.tags.span()
+            return ui.tags.span()  # No trend to show with single year
+        # Compare most recent year to previous year
         current_year_margin = filtered_df[filtered_df["Year"] == years[-1]][
             "Net Profit Margin"
         ].mean()
@@ -164,12 +183,13 @@ def sector_server(input, output, session):
         if pd.isna(current_year_margin) or pd.isna(previous_year_margin):
             return ui.tags.span()
         is_positive = current_year_margin >= previous_year_margin
-        trend_char = "▲" if is_positive else "▼"
+        trend_char = "\u25b2" if is_positive else "\u25bc"
         trend_class = "up" if is_positive else "down"
         return ui.tags.span(trend_char, class_=f"trend-indicator {trend_class}")
 
     @render.ui
     def p1_margin_badge():
+        """Render a badge to identify the number of companies being compared"""
         filtered = p1_filtered_data()
         if filtered.empty:
             return ui.tags.span()
@@ -180,8 +200,11 @@ def sector_server(input, output, session):
             style="margin-top: 0.5rem;",
         )
 
+    # ---------------Top Sector---------------
     @render.text
     def p1_top_sector():
+        """Calculate Top sector based on Max Average profit margin from filtered data.
+        Return 'Data Unavailable' for empty dataset"""
         filtered = p1_filtered_data()
         if filtered.empty:
             return "Data Unavailable"
@@ -190,9 +213,11 @@ def sector_server(input, output, session):
 
     @reactive.calc
     def p1_index_margin():
+        """Calculate Index Performance for 'p1_index_performance_display'"""
         filtered_df = p1_filtered_data()
         if filtered_df.empty:
             return 0.0
+        # Aggregated Index Formula: Total Income / Total Revenue
         total_revenue = filtered_df["Revenue"].sum()
         total_net_income = filtered_df["Net Income"].sum()
         if total_revenue == 0:
@@ -201,6 +226,7 @@ def sector_server(input, output, session):
 
     @render.ui
     def p1_index_performance_display():
+        """Render Index Performance of the Top sector"""
         margin = p1_index_margin()
         return ui.tags.p(
             "INDEX PERFORMANCE: ",
@@ -209,8 +235,10 @@ def sector_server(input, output, session):
             class_="kpi-label",
         )
 
+    # ---------------Revenue Growth---------------
     @reactive.calc
     def p1_revenue_change():
+        """Calculate revenue change value and direction (shared by display and trend)."""
         filtered_df = p1_filtered_data()
         yearly_revenue = (
             filtered_df.groupby("Year")["Revenue"].sum().sort_index(ascending=False)
@@ -242,43 +270,52 @@ def sector_server(input, output, session):
 
     @render.ui
     def p1_revenue_trend():
+        """Render trend indicator for revenue growth based on actual data."""
         change = p1_revenue_change()
         if change is None:
             return ui.tags.span()
-        trend_char = "▲" if change["is_positive"] else "▼"
+        trend_char = "\u25b2" if change["is_positive"] else "\u25bc"
         trend_class = "up" if change["is_positive"] else "down"
         return ui.tags.span(trend_char, class_=f"trend-indicator {trend_class}")
 
-    # --- Chart outputs ---
+    # ---------------Chart outputs---------------
 
+    # Sector Profitability
     @render_altair
     def p1_chart_a():
+        """Render Chart A - Sector Profitability"""
         filtered = p1_filtered_data()
         metric = p1_selected_metric()
         unit = METRIC_CHOICES[metric]
         return build_sector_bar(filtered, metric, unit)
 
     @render.ui
-    def trend_header():
+    def p1_trend_header():
         min_year, max_year = input.p1_year_range()
         return f"Trend - {p1_selected_metric()}  ({min_year}-{max_year})"
 
+    # Metric Based Trend
     @render_altair
     def p1_chart_b():
+        """Render Chart B - Metric based Trend"""
         filtered = p1_filtered_data()
         metric = p1_selected_metric()
         unit = METRIC_CHOICES[metric]
         return build_metric_trend(filtered, metric, unit)
 
+    # Peer Benchmarking Scatterplot
     @render_altair
     def p1_chart_c():
+        """Render Chart C - Peer Benchmarking Scatterplot"""
         filtered = p1_filtered_data()
         metric = p1_selected_metric()
         unit = METRIC_CHOICES[metric]
         return build_peer_scatter(filtered, metric, unit)
 
+    # Company Details
     @render.data_frame
     def p1_table_d():
+        """Render Table D - Company Details"""
         filtered = p1_filtered_data()
         cols = [
             "Company",

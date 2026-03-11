@@ -6,7 +6,7 @@ Milestone 3 has three objectives:
 
 1. **Modular refactor** — decompose the monolithic `src/app.py` (639 lines) into a multi-module architecture.
 2. **Page 2 completion** — replace all hardcoded placeholders on Company Health with reactive KPIs, charts, and filters.
-3. **AI Explorer page** — add a new tab powered by `querychat` that lets users filter the financial dataset with natural language and view reactive visualizations + download the result.
+3. **fin-chat page** — add a new tab powered by `querychat` that lets users filter the financial dataset with natural language and view adaptive visualizations + download the result.
 
 ---
 
@@ -24,7 +24,7 @@ src/
 │   ├── __init__.py
 │   ├── sector.py           # Page 1 UI + server logic (Sector Analysis)
 │   ├── company.py          # Page 2 UI + server logic (Company Health)
-│   └── ai_explorer.py      # Page 3 UI + server logic (AI Explorer — NEW)
+│   └── ai_explorer.py      # Page 3 UI + server logic (fin-chat — NEW)
 └── charts/
     ├── __init__.py
     └── altair_charts.py    # Pure functions that build Altair chart specs
@@ -37,7 +37,7 @@ src/
 | `data.py` | Load CSV, clean columns, define `CATEGORY_COMPANIES`, `METRIC_CHOICES`, `ALL_SECTORS` | `load_data()`, `df`, constants |
 | `components/kpi_card.py` | Factory function for consistent KPI cards | `kpi_card()` |
 | `components/empty_chart.py` | Reusable empty-state Altair chart | `empty_chart()` |
-| `charts/altair_charts.py` | Pure functions: data in → Altair spec out (no Shiny dependency) | `build_sector_bar()`, `build_metric_trend()`, `build_peer_scatter()`, `build_ai_metric_bar()`, `build_ai_trend_line()` |
+| `charts/altair_charts.py` | Pure functions: data in → Altair spec out (no Shiny dependency); registers custom `fin_health` Altair theme (DM Sans font, custom palette) | `build_sector_bar()`, `build_metric_trend()`, `build_peer_scatter()`, `build_revenue_over_time()`, `build_ratio_over_time()`, `build_cash_flows()`, `build_company_comparison_bar()`, `build_single_company_summary()`, `build_company_trend()` |
 | `pages/sector.py` | Page 1 UI layout + server function | `sector_ui()`, `sector_server()` |
 | `pages/company.py` | Page 2 UI layout + server function | `company_ui()`, `company_server()` |
 | `pages/ai_explorer.py` | Page 3 UI layout + server function (querychat) | `ai_explorer_ui()`, `ai_explorer_server()` |
@@ -101,7 +101,13 @@ Replaces the 3 inline KPI card definitions with a single factory (addresses ui-r
 ```python
 from shiny import ui
 
-def kpi_card(header: str, value_id: str, trend_id: str = None, label_id: str = None):
+def kpi_card(
+    header: str,
+    value_id: str,
+    trend_id: str = None,
+    label_id: str = None,
+    status_id: str = None,
+):
     """Build a KPI card with consistent structure."""
     value_children = [
         ui.tags.h3(
@@ -109,6 +115,8 @@ def kpi_card(header: str, value_id: str, trend_id: str = None, label_id: str = N
             class_="kpi-value", style="display: inline;",
         )
     ]
+    if status_id:
+        value_children.append(ui.output_ui(status_id, style="display: inline;"))
     if trend_id:
         value_children.append(ui.output_ui(trend_id, style="display: inline;"))
 
@@ -148,16 +156,17 @@ Functions to extract from current server logic:
 
 | Function | Current location | Description |
 |----------|-----------------|-------------|
-| `build_sector_bar(data, metric, unit)` | `p1_chart_a` | Bar chart of avg metric by sector |
-| `build_metric_trend(data, metric, unit)` | `p1_chart_b` | Line chart of metric over time by sector |
-| `build_peer_scatter(data, metric, unit)` | `p1_chart_c` | Scatter of Revenue vs metric |
-| `build_revenue_over_time(data, company)` | NEW (Page 2) | Bar chart of yearly revenue for a single company |
-| `build_ratio_over_time(data, company, metric)` | NEW (Page 2) | Line chart of Current Ratio or Debt/Equity over time |
-| `build_cash_flows(data, company)` | NEW (Page 2) | Grouped bar chart of Operating, Investing, Financing cash flows |
-| `build_ai_metric_bar(data, metric, unit)` | NEW | Bar chart for AI Explorer (reuses `build_sector_bar` logic) |
-| `build_ai_trend_line(data, metric, unit)` | NEW | Trend line for AI Explorer (reuses `build_metric_trend` logic) |
+| `build_sector_bar(data, metric, unit)` | `p1_chart_a`, `ai_chart_a` | Bar chart of avg metric by sector |
+| `build_metric_trend(data, metric, unit)` | `p1_chart_b`, `ai_chart_b` | Line chart of metric over time by sector |
+| `build_peer_scatter(data, metric, unit)` | `p1_chart_c`, `ai_chart_b` | Scatter of Revenue vs metric |
+| `build_revenue_over_time(data, company)` | `p2_revenue_chart` | Bar chart of yearly revenue for a single company |
+| `build_ratio_over_time(data, company, metric)` | `p2_current_ratio_chart`, `p2_debt_equity_chart` | Line chart of Current Ratio or Debt/Equity over time |
+| `build_cash_flows(data, company)` | `p2_cash_flow_chart`, `ai_chart_b` | Grouped bar chart of Operating, Investing, Financing cash flows |
+| `build_company_comparison_bar(data, metric, unit)` | `ai_chart_a` | Bar chart comparing companies on a metric (single sector/year) |
+| `build_single_company_summary(data, company, year)` | `ai_chart_a` | Horizontal bar of key metrics for one company/year |
+| `build_company_trend(data, metric, unit)` | `ai_chart_b` | Trend line colored by company |
 
-The AI Explorer charts can call the same underlying functions with the querychat-filtered dataframe.
+The fin-chat charts adaptively select which function to call based on the filtered data shape (number of companies, sectors, years). A custom `fin_health` Altair theme is registered at module load to apply DM Sans typography and a consistent color palette.
 
 ### 2.5 `pages/sector.py`
 
@@ -188,27 +197,37 @@ This is the core M3 feature. Detailed spec below in §3.
 Reduced to ~40 lines — just composition:
 
 ```python
-from pathlib import Path
 import subprocess
+import sys
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).parent.parent / ".env")
+
+# Ensure src/ is on the Python path (needed for Posit Connect deployment)
+sys.path.insert(0, str(Path(__file__).parent))
+
 from shiny import App, ui
 from pages.sector import sector_ui, sector_server
 from pages.company import company_ui, company_server
 from pages.ai_explorer import ai_explorer_ui, ai_explorer_server
 
 CSS_PATH = Path(__file__).parent.parent / "assets" / "custom_styles.css"
-with open(CSS_PATH, "r") as f:
-    CUSTOM_CSS = ui.tags.style(f.read())
+with open(CSS_PATH, "r") as css_file:
+    CUSTOM_CSS = ui.tags.style(css_file.read())
 
+nav_sector = ui.nav_panel("Sector Analysis", sector_ui())
+nav_company = ui.nav_panel("Company Health", company_ui())
+nav_ai = ui.nav_panel("fin-chat", ai_explorer_ui())
 navbar = ui.page_navbar(
-    ui.nav_panel("Sector Analysis", sector_ui()),
-    ui.nav_panel("Company Health", company_ui()),
-    ui.nav_panel("AI Explorer", ai_explorer_ui()),
+    nav_sector, nav_company, nav_ai,
     title="fin-health",
     id="main_nav",
     fillable=True,
 )
 
-footer = ui.tags.footer(...)  # same as current
+footer = ui.tags.footer(...)  # git log last-updated timestamp
 
 app_ui = ui.page_fluid(CUSTOM_CSS, navbar, footer)
 
@@ -222,11 +241,11 @@ app = App(app_ui, server)
 
 ---
 
-## 3. AI Explorer Page — Feature Spec
+## 3. fin-chat Page — Feature Spec
 
 ### 3.1 Purpose
 
-The LLM acts as a **natural-language data filter**. Users type queries like *"Show tech companies with profit margin above 20%"* and the LLM translates them into pandas filter operations. The filtered dataframe then drives visualizations and can be downloaded.
+The LLM acts as a **natural-language data filter**. Users type queries like *"Show tech companies with profit margin above 20%"* and the LLM translates them into pandas filter operations. The filtered dataframe then drives adaptive visualizations and can be downloaded.
 
 ### 3.2 User Stories
 
@@ -260,23 +279,33 @@ The LLM acts as a **natural-language data filter**. Users type queries like *"Sh
 
 ### 3.4 Component Inventory — Page 3
 
-10 components: 1 querychat instance, 1 reactive calc, 4 outputs, 1 input (metric selector), 1 download handler, and 2 querychat-managed reactives.
+9 components: 1 querychat instance, 4 outputs, 1 download handler, and querychat-managed reactives. The metric for charts is **auto-inferred** from the querychat title via keyword matching (no manual selector).
 
 | ID | Type | Widget / Renderer | Depends on | User story |
 |---|---|---|---|---|
-| `qc` | QueryChat instance | `querychat.QueryChat()` | — | #6 |
+| `qc` | QueryChat instance | `querychat.QueryChat()` (lazily cached) | — | #6 |
 | `qc_vals` | Reactive (managed by querychat) | `qc.server()` → `.df()`, `.title()` | user chat input | #6 |
-| `ai_metric` | Input | `ui.input_selectize()` | — | #7 |
 | `ai_title` | Output | `@render.text` | `qc_vals.title()` | #6 |
 | `ai_data_table` | Output | `@render.data_frame` | `qc_vals.df()` | #6 |
-| `ai_chart_a` | Output | `@render_altair` | `qc_vals.df()`, `ai_metric` | #7 |
-| `ai_chart_b` | Output | `@render_altair` | `qc_vals.df()`, `ai_metric` | #7 |
+| `ai_chart_a` | Output | `@render_altair` | `qc_vals.df()`, inferred metric | #7 |
+| `ai_chart_b` | Output | `@render_altair` | `qc_vals.df()`, inferred metric | #7 |
 | `ai_row_count` | Output | `@render.text` | `qc_vals.df()` | #6 |
 | `ai_download` | Download | `@render.download` | `qc_vals.df()` | #8 |
+
+**Metric inference:** A `_infer_metric(title)` helper scans the querychat title for keywords (e.g., "revenue", "roe", "debt/equity") and maps to the corresponding metric name. Falls back to "Net Profit Margin".
+
+**Adaptive chart selection:** Charts choose which builder function to call based on the filtered data shape:
+- `ai_chart_a`: 1 company → `build_single_company_summary`; 1 sector or year → `build_company_comparison_bar`; else → `build_sector_bar`
+- `ai_chart_b`: 1 company → `build_company_trend`; cash-flow query → `build_cash_flows`; else → `build_peer_scatter`
+
+**Graceful fallback:** When `GITHUB_TOKEN` is not set, the page displays an informational message instead of the chat interface.
 
 ### 3.5 QueryChat Configuration
 
 ```python
+import os
+from functools import cache
+
 import querychat
 from chatlas import ChatGithub
 from data import df
@@ -285,64 +314,105 @@ DATA_DESCRIPTION = """
 US Corporate financial statement data (2009–2023), covering 12 publicly
 traded companies across 8 sectors.
 
-Column descriptions:
+Company-sector mapping:
+- BANK: AIG, BCS
+- ELEC: INTC, NVDA
+- FINANCE: SHLDQ
+- FINTECH: PYPL
+- FOOD: MCD
+- IT: AAPL, GOOG, MSFT
+- LOGI: AMZN
+- MANUFACTURING: PCG
+
+Column descriptions (with approximate value ranges):
 - Year: fiscal year (2009–2023)
 - Company: ticker symbol (AAPL, GOOG, MSFT, AMZN, INTC, NVDA, PYPL, MCD, AIG, BCS, SHLDQ, PCG)
 - Category: sector (BANK, ELEC, FINANCE, FINTECH, FOOD, IT, LOGI, MANUFACTURING)
-- Market Cap(in B USD): market capitalization in billions
-- Revenue: annual revenue in millions USD
-- Gross Profit: gross profit in millions USD
-- Net Income: net income in millions USD
-- Earning Per Share: earnings per share in USD
-- EBITDA: earnings before interest, taxes, depreciation, and amortization in millions USD
+- Market Cap(in B USD): market capitalization in billions (~$1B–$3,000B)
+- Revenue: annual revenue in millions USD (~$500M–$400,000M)
+- Gross Profit: gross profit in millions USD (~$100M–$170,000M)
+- Net Income: net income in millions USD (~-$25,000M–$100,000M)
+- Earning Per Share: earnings per share in USD (~-$30–$6)
+- EBITDA: earnings before interest, taxes, depreciation, amortization in millions USD
 - Share Holder Equity: total shareholder equity in millions USD
 - Cash Flow from Operating: operating cash flow in millions USD
 - Cash Flow from Investing: investing cash flow in millions USD
 - Cash Flow from Financial Activities: financing cash flow in millions USD
-- Current Ratio: current assets / current liabilities (>1 = healthy liquidity)
-- Debt/Equity Ratio: total debt / shareholder equity
-- ROE: return on equity (%)
-- ROA: return on assets (%)
-- ROI: return on investment (%)
-- Net Profit Margin: net income / revenue (%)
-- Free Cash Flow per Share: free cash flow per share in USD
-- Return on Tangible Equity: return on tangible equity (%)
-- Number of Employees: headcount
-- Inflation Rate(in US): US inflation rate for that year (%)
+- Current Ratio: current assets / current liabilities; >1 = healthy liquidity (~0.5–4.0)
+- Debt/Equity Ratio: total debt / shareholder equity (~-10–30)
+- ROE: return on equity in percent (~-80%–+160%)
+- ROA: return on assets in percent (~-15%–+30%)
+- ROI: return on investment in percent (~-20%–+50%)
+- Net Profit Margin: net income / revenue in percent (~-50%–+35%)
+- Free Cash Flow per Share: free cash flow per share in USD (~-$5–$7)
+- Return on Tangible Equity: return on tangible equity in percent
+- Number of Employees: headcount (~10,000–1,600,000)
+- Inflation Rate(in US): US inflation rate for that year in percent (~0.1%–8%)
 """
 
 GREETING = """
 Hi! I can help you explore the financial dataset. Try one of these:
 
-* <span class="suggestion">Show tech companies with profit margin above 20%</span>
-* <span class="suggestion">Compare all companies in 2022</span>
-* <span class="suggestion">Filter to banks with high debt/equity ratio</span>
-* <span class="suggestion">Which company had the highest ROE?</span>
+**Filter:** <span class="suggestion">Show tech companies with net profit margin above 20%</span>
+
+**Compare:** <span class="suggestion">Rank all companies by ROE in 2022</span>
+
+**Aggregate:** <span class="suggestion">What is the average revenue by sector?</span>
+
+**Health check:** <span class="suggestion">Which companies have a current ratio below 1?</span>
 """
 
-qc = querychat.QueryChat(
-    df,
-    "financial_data",
-    data_description=DATA_DESCRIPTION,
-    greeting=GREETING,
-    client=ChatGithub(model="gpt-4.1-mini"),
-)
+EXTRA_INSTRUCTIONS = """
+You are a financial data analyst assistant. Follow these rules strictly:
+
+1. **Always use `querychat_query` before reporting any statistics.** Never guess,
+   estimate, or hallucinate numbers. If you cannot answer from the data, say so.
+
+2. Structure every response in this format:
+   - **Filters applied:** list the filters used (or "None" if showing all data)
+   - **Key stats:** 2-3 notable numbers from the query result
+   - **Insight:** one sentence interpreting the result
+   - **Try next:** one clickable follow-up suggestion as
+     `<span class="suggestion">suggestion text</span>`
+
+3. When the user asks about a sector, use the Category column (e.g., IT, BANK).
+   When they mention a company name, map it to the ticker in the Company column.
+
+4. Keep responses concise — no more than 5 sentences outside the structured format.
+"""
+
+@cache
+def _get_qc():
+    """Lazily create the QueryChat instance (deferred until first use)."""
+    return querychat.QueryChat(
+        df,
+        "financial_data",
+        data_description=DATA_DESCRIPTION,
+        extra_instructions=EXTRA_INSTRUCTIONS,
+        greeting=GREETING,
+        client=ChatGithub(model="gpt-4.1-mini"),
+    )
+
+def _has_token():
+    """Check whether GITHUB_TOKEN is available."""
+    return bool(os.environ.get("GITHUB_TOKEN"))
 ```
 
 ### 3.6 Reactivity Diagram — Page 3
 
 ```mermaid
 flowchart TD
-    subgraph S3 ["Page 3 — AI Explorer"]
+    subgraph S3 ["Page 3 — fin-chat"]
         QC[/"querychat (user chat input)"/] --> QCV{{qc_vals}}
         QCV -->|".title()"| T([ai_title])
+        QCV -->|".title()"| IM{{_infer_metric}}
         QCV -->|".df()"| DT([ai_data_table])
         QCV -->|".df()"| RC([ai_row_count])
         QCV -->|".df()"| CA([ai_chart_a])
         QCV -->|".df()"| CB([ai_chart_b])
         QCV -->|".df()"| DL([ai_download])
-        M[/ai_metric/] --> CA
-        M --> CB
+        IM --> CA
+        IM --> CB
     end
 ```
 
@@ -357,12 +427,16 @@ def ai_download():
 
 ### 3.8 Visualization Details
 
-Both charts reuse logic from `charts/altair_charts.py`:
+Both charts adaptively select from `charts/altair_charts.py` functions based on the filtered data shape:
 
-| Chart | Function | Description |
-|-------|----------|-------------|
-| `ai_chart_a` | `build_sector_bar(data, metric, unit)` | Bar chart of average metric by sector for the AI-filtered data |
-| `ai_chart_b` | `build_metric_trend(data, metric, unit)` | Line chart of metric trend over time for the AI-filtered data |
+| Chart | Condition | Function | Description |
+|-------|-----------|----------|-------------|
+| `ai_chart_a` | 1 company | `build_single_company_summary(data, company, year)` | Horizontal bar of key metrics for one company |
+| `ai_chart_a` | 1 sector or year | `build_company_comparison_bar(data, metric, unit)` | Bar chart comparing companies on a metric |
+| `ai_chart_a` | else | `build_sector_bar(data, metric, unit)` | Bar chart of average metric by sector |
+| `ai_chart_b` | 1 company | `build_company_trend(data, metric, unit)` | Trend line colored by company |
+| `ai_chart_b` | cash-flow query | `build_cash_flows(data, company)` | Grouped bar of cash flow components |
+| `ai_chart_b` | else | `build_peer_scatter(data, metric, unit)` | Scatter of Revenue vs metric |
 
 Both fall back to `empty_chart()` when the filtered dataframe is empty.
 
@@ -554,16 +628,16 @@ These should be addressed during the refactor:
 
 The refactor should be done in order to minimize breakage:
 
-- [ ] Create `src/data.py` — extract data loading and constants from `app.py`
-- [ ] Create `src/components/` — extract `kpi_card()` and `empty_chart()`
-- [ ] Create `src/charts/altair_charts.py` — extract pure chart builder functions
-- [ ] Create `src/pages/sector.py` — extract Page 1 UI + server
-- [ ] Create `src/pages/company.py` — extract Page 2 UI + server
-- [ ] Implement Page 2 reactive KPIs and charts (replace all hardcoded placeholders)
-- [ ] Create `src/pages/ai_explorer.py` — implement new AI Explorer page
-- [ ] Refactor `src/app.py` — reduce to entry-point composition only
-- [ ] Update `tests/` — migrate and expand tests for new module structure
-- [ ] Apply CSS fixes from §7
-- [ ] Add `querychat`, `chatlas`, `python-dotenv` to `requirements.txt` and `environment.yml`
-- [ ] Set `GITHUB_TOKEN` env var on Posit Connect Cloud for deployment
-- [ ] Update `CHANGELOG.md` with `[0.3.0]` entry
+- [x] Create `src/data.py` — extract data loading and constants from `app.py`
+- [x] Create `src/components/` — extract `kpi_card()` and `empty_chart()`
+- [x] Create `src/charts/altair_charts.py` — extract pure chart builder functions
+- [x] Create `src/pages/sector.py` — extract Page 1 UI + server
+- [x] Create `src/pages/company.py` — extract Page 2 UI + server
+- [x] Implement Page 2 reactive KPIs and charts (replace all hardcoded placeholders)
+- [x] Create `src/pages/ai_explorer.py` — implement new fin-chat page
+- [x] Refactor `src/app.py` — reduce to entry-point composition only
+- [x] Update `tests/` — migrate and expand tests for new module structure
+- [x] Apply CSS fixes from §7
+- [x] Add `querychat`, `chatlas`, `python-dotenv` to `requirements.txt` and `environment.yml`
+- [x] Set `GITHUB_TOKEN` env var on Posit Connect Cloud for deployment
+- [x] Update `CHANGELOG.md` with `[0.3.0]` entry
