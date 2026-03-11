@@ -3,6 +3,7 @@
 import html
 import os
 from functools import cache
+from pathlib import Path
 
 import querychat
 import querychat.tools as _qc_tools
@@ -22,6 +23,13 @@ from charts.altair_charts import (
 )
 from components.empty_chart import empty_chart
 from data import METRIC_CHOICES, df
+
+GLOSSARY_PATH = (
+    Path(__file__).parent.parent.parent
+    / "data"
+    / "knowledge_base"
+    / "finance_glossary.txt"
+)
 
 # ---------------------------------------------------------------------------
 # Monkey-patch querychat's _update_dashboard_impl to HTML-escape the query and
@@ -198,7 +206,32 @@ You are a financial data analyst assistant. Follow these rules strictly:
 6. **Never include raw HTML, SQL code blocks, or `<button>` markup in your
    response text.** Do not echo the SQL query or the button element back to the
    user. Just call the appropriate tool and provide the structured summary.
+
+7. **Financial term questions:** When the user asks what a metric means or how
+   to interpret a value, consult the <finance_glossary> below and cite the
+   definition, formula, and healthy range. Always ground your explanation in
+   the glossary rather than generating definitions from memory.
 """
+
+
+def _load_glossary() -> str:
+    """Load the finance glossary knowledge base for RAG context."""
+    if GLOSSARY_PATH.exists():
+        return GLOSSARY_PATH.read_text(encoding="utf-8")
+    return ""
+
+
+def _build_extra_instructions() -> str:
+    """Combine base instructions with the finance glossary knowledge base."""
+    glossary = _load_glossary()
+    if glossary:
+        return (
+            EXTRA_INSTRUCTIONS
+            + "\n<finance_glossary>\n"
+            + glossary
+            + "\n</finance_glossary>\n"
+        )
+    return EXTRA_INSTRUCTIONS
 
 
 @cache
@@ -208,7 +241,7 @@ def _get_qc():
         df,
         "financial_data",
         data_description=DATA_DESCRIPTION,
-        extra_instructions=EXTRA_INSTRUCTIONS,
+        extra_instructions=_build_extra_instructions(),
         greeting=GREETING,
         client=ChatGithub(model="gpt-4.1-mini"),
     )
@@ -257,7 +290,7 @@ def ai_explorer_ui():
                             'a2 2 0 0 1-2 2z"/>'
                             '<polyline points="17 21 17 13 7 13 7 21"/>'
                             '<polyline points="7 3 7 8 15 8"/>'
-                            '</svg>'
+                            "</svg>"
                         ),
                         "Download CSV",
                     ),
