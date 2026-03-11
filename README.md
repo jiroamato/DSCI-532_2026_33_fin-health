@@ -73,10 +73,17 @@ conda activate fin-health
 shiny run --reload src/app.py
 ```
 
-5. Run fin-health Shiny dashboard locally:
+6. Run the test suite:
 
 ```bash
-shiny run --reload src/app.py
+# Unit tests only (fast)
+pytest tests/ -v --ignore=tests/test_app_playwright.py
+
+# Playwright end-to-end tests (requires playwright install)
+pytest tests/test_app_playwright.py -v
+
+# All tests
+pytest tests/ -v
 ```
 
 ## Contributors
