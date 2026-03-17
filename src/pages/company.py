@@ -1,6 +1,6 @@
 """Page 2: Company Financial Health — UI layout and server logic."""
 
-from shiny import reactive, render, ui
+from shiny import reactive, render, ui, req
 from shinywidgets import output_widget, render_altair
 
 from charts.altair_charts import (
@@ -151,7 +151,6 @@ def company_server(input, output, session):
     @render.ui
     def p2_year_slider():
         company = input.company()
-        # Use ibis to get year range for the selected company
         company_expr = tbl.filter(tbl["Company"] == company)
         company_data = company_expr.to_pandas()
         if company_data.empty:
@@ -191,10 +190,9 @@ def company_server(input, output, session):
         category = input.category()
         company = input.company()
         year = input.year()
+        req(category, company, year)  # Ensure all inputs are available before filtering
         expr = tbl.filter(
-            tbl["Category"] == category,
-            tbl["Company"] == company,
-            tbl["Year"] == year,
+            tbl["Category"] == category, tbl["Company"] == company, tbl["Year"] == year
         )
         return expr.to_pandas()
 

@@ -4,7 +4,9 @@ from pathlib import Path
 
 import ibis
 
-PARQUET_PATH = Path(__file__).parent.parent / "data" / "processed" / "financial_statement.parquet"
+PARQUET_PATH = (
+    Path(__file__).parent.parent / "data" / "processed" / "financial_statement.parquet"
+)
 
 # --- ibis / DuckDB connection ---
 con = ibis.duckdb.connect()
