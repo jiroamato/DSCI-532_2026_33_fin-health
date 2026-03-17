@@ -26,9 +26,10 @@ def sector_ui():
     sector_select = ui.input_selectize(
         id="p1_sector",
         label="Sector",
-        choices=["All"] + ALL_SECTORS,
-        selected="All",
+        choices=ALL_SECTORS,
+        selected=[],
         multiple=True,
+        options={"placeholder": "All sectors (select to filter)"}
     )
     metric_select = ui.input_selectize(
         id="p1_metric",
